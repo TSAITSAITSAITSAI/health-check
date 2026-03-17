@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>健康管理系統</title>
   <style>
-    /* 全域基礎樣式 */
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
       margin: 0; 
@@ -103,7 +102,7 @@
     <div class="title">✍️ 本次填寫資料</div>
     
     <label>電話號碼</label>
-    <input id="pR" placeholder="請輸入 10 碼電話" inputmode="tel">
+    <input id="pR" placeholder="請輸入電話" inputmode="tel">
 
     <label>目前時間</label>
     <input id="R_Time" disabled>
@@ -126,11 +125,11 @@
     <label>體重 (kg)</label>
     <input id="w" type="number" step="0.1" inputmode="decimal">
 
-    <label>血壓 (收縮壓/舒張壓)</label>
-    <input id="bp" placeholder="例如：120/80">
-
     <label>體溫 (°C)</label>
     <input id="temp" type="number" step="0.1" inputmode="decimal">
+
+    <label>血壓</label>
+    <input id="bp" placeholder="例如：120/80">
 
     <label>是否有駕照</label>
     <div class="radio-group">
@@ -163,11 +162,26 @@
     <label>年紀</label>
     <input id="L_Age" disabled>
 
+    <label>血型</label>
+    <input id="L_BloodType" disabled>
+
     <label>身高 (cm)</label>
     <input id="L_Height" disabled>
 
     <label>體重 (kg)</label>
     <input id="L_Weight" disabled>
+
+    <label>體溫 (°C)</label>
+    <input id="L_Temp" disabled>
+
+    <label>血壓</label>
+    <input id="L_BloodPressure" disabled>
+
+    <label>是否有駕照</label>
+    <input id="L_HasLicense" disabled>
+
+    <label>是否有咳嗽</label>
+    <input id="L_HasCough" disabled>
 
     <label>備註</label>
     <textarea id="L_Note" rows="2" disabled></textarea>
@@ -179,56 +193,80 @@
 
 <script>
   const $ = id => document.getElementById(id);
-  
-  // 重要：請務必更換為你自己的 GAS 部署網址
+
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyUs4b6HiLGSHO2JwZs-OYpVH4g12MxsOBQ-eN3c60Qewb14s9_L0DCoLpPsOYNxEY4fw/exec";
 
-  function updateRTime(){
+  function updateRTime() {
     const now = new Date();
     $('R_Time').value = now.toLocaleString('zh-TW', { hour12: false });
   }
+
   updateRTime();
   setInterval(updateRTime, 30000);
 
   async function query() {
     const phone = $('pL').value.trim();
-    if(!phone) {
+
+    if (!phone) {
       $('lMsg').innerHTML = '<span class="warn">請輸入電話</span>';
       return;
     }
+
     $('lMsg').textContent = '查詢中...';
-    
+
     try {
-      // GitHub Pages 呼叫 GAS 的 GET 請求
-      const resp = await fetch(`${GAS_URL}?phone=${phone}`);
+      const resp = await fetch(`${GAS_URL}?phone=${encodeURIComponent(phone)}`);
       const rec = await resp.json();
-      
-      if(!rec || Object.keys(rec).length === 0) {
+
+      if (!rec || Object.keys(rec).length === 0) {
         $('lMsg').innerHTML = '<span class="warn">查無紀錄</span>';
+        clearHistory();
         return;
       }
-      
+
       $('lMsg').innerHTML = '<span class="ok">✅ 已載入歷史</span>';
-      $('L_Time').value = rec.CreatedAt ? new Date(rec.CreatedAt).toLocaleString('zh-TW', { hour12: false }) : '';
+
+      $('L_Time').value = rec.CreatedAt || '';
       $('L_Age').value = rec.Age || '';
+      $('L_BloodType').value = rec.BloodType || '';
       $('L_Height').value = rec.Height || '';
       $('L_Weight').value = rec.Weight || '';
+      $('L_Temp').value = rec.Temp || '';
+      $('L_BloodPressure').value = rec.BloodPressure || '';
+      $('L_HasLicense').value = rec.HasLicense || '';
+      $('L_HasCough').value = rec.HasCough || '';
       $('L_Note').value = rec.Note || '';
     } catch (e) {
-      $('lMsg').innerHTML = '<span class="warn">查詢出錯，請確認 GAS 網址</span>';
+      $('lMsg').innerHTML = '<span class="warn">查詢出錯，請確認 GAS 網址或 API 回傳格式</span>';
     }
+  }
+
+  function clearHistory() {
+    [
+      'L_Time',
+      'L_Age',
+      'L_BloodType',
+      'L_Height',
+      'L_Weight',
+      'L_Temp',
+      'L_BloodPressure',
+      'L_HasLicense',
+      'L_HasCough',
+      'L_Note'
+    ].forEach(id => $(id).value = '');
   }
 
   async function submit() {
     const phone = $('pR').value.trim();
-    if(!phone) {
+
+    if (!phone) {
       $('rMsg').innerHTML = '<span class="warn">❌ 請填寫電話</span>';
       return;
     }
-    
+
     const btn = $('btnSubmit');
     btn.disabled = true;
-    btn.innerText = "傳送中...";
+    btn.innerText = '傳送中...';
     $('rMsg').textContent = '正在儲存到雲端...';
 
     const payload = {
@@ -237,8 +275,8 @@
       BloodType: $('blood').value,
       Height: $('h').value,
       Weight: $('w').value,
-      BloodPressure: $('bp').value,
       Temp: $('temp').value,
+      BloodPressure: $('bp').value,
       HasLicense: document.querySelector('input[name="license"]:checked').value,
       HasCough: document.querySelector('input[name="cough"]:checked').value,
       Note: $('note').value,
@@ -246,24 +284,24 @@
     };
 
     try {
-      // 使用 no-cors 模式確保能避開 GAS 的重定向限制順利送出資料
       await fetch(GAS_URL, {
-        method: "POST",
-        mode: "no-cors", 
+        method: 'POST',
+        mode: 'no-cors',
         body: JSON.stringify(payload)
       });
-      
+
       $('rMsg').innerHTML = '<span class="ok">🎉 送出成功！</span>';
       $('pL').value = phone;
-      query(); // 自動更新參考區
-      
-      // 清空表單
-      ['age','h','w','bp','temp','note'].forEach(id => $(id).value = '');
+      query();
+
+      ['age', 'blood', 'h', 'w', 'temp', 'bp', 'note'].forEach(id => $(id).value = '');
+      document.querySelector('input[name="license"][value="否"]').checked = true;
+      document.querySelector('input[name="cough"][value="否"]').checked = true;
     } catch (e) {
       $('rMsg').innerHTML = '<span class="warn">儲存失敗，請再試一次</span>';
     } finally {
       btn.disabled = false;
-      btn.innerText = "確認送出";
+      btn.innerText = '確認送出';
     }
   }
 </script>
