@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>健康管理系統 - 鼻科診斷追蹤</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+      margin: 0; 
+      padding: 12px;
+      background: #f0f4f8; 
+      color: #333;
+    }
+    
+    .main-container { 
+      max-width: 1400px; 
+      margin: 0 auto; 
+    }
+
+    .card { 
+      background: #fff; 
+      border-radius: 20px; 
+      padding: 24px; 
+      border: 1px solid #e1e8ed; 
+      box-shadow: 0 8px 24px rgba(149, 157, 165, 0.1); 
+      margin-bottom: 16px;
+    }
+
+    .card.history { background: #f8fafc; border-left: 6px solid #64748b; }
+    .card.entry { background: #fff; border-left: 6px solid #1a73e8; }
+    
+    .title { 
+      font-weight: 800; 
+      font-size: 20px; 
+      margin-bottom: 16px; 
+      color: #1a73e8; 
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history .title { color: #475569; }
+    
+    label { 
+      display: block; 
+      margin: 10px 0 4px; 
+      font-weight: 600; 
+      font-size: 13px; 
+      color: #4a5568;
+    }
+
+    input, select, textarea { 
+      width: 100%; 
+      padding: 10px; 
+      border: 1.5px solid #cbd5e0; 
+      border-radius: 10px; 
+      font-size: 15px; 
+      box-sizing: border-box; 
+      background: white;
+    }
+
+    input:disabled, select:disabled, textarea:disabled { 
+      background: #e2e8f0; 
+      color: #64748b;
+      cursor: not-allowed; 
+    }
+
+    .section-divider {
+      margin: 20px 0 10px;
+      padding-bottom: 5px;
+      border-bottom: 2px solid #e2e8f0;
+      font-weight: bold;
+      color: #2d3748;
+      grid-column: span 2;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media(max-width: 1024px) {
+      .form-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .full-width { grid-column: span 4; }
+    @media(max-width: 1024px) {
+      .full-width { grid-column: span 2; }
+    }
+
+    .symptom-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .score-badge {
+      background: #edf2f7;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    button { 
+      width: 100%; 
+      padding: 14px; 
+      border-radius: 12px; 
+      font-size: 17px; 
+      font-weight: 700; 
+      cursor: pointer; 
+      transition: all 0.2s;
+    }
+
+    #btnSubmit { background: #1a73e8; color: #fff; border: none; margin-top: 20px; }
+    #btnSubmit:hover { background: #1557b0; }
+    .btn-query { background: #64748b; color: #fff; border: none; height: 42px; }
+
+    .msg { font-size: 14px; margin-top: 10px; text-align: center; }
+    .ok { color: #2f855a; font-weight: bold; }
+    .warn { color: #c53030; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="main-container">
+  
+  <!-- 頂部：患者基本資料 -->
+  <div class="card">
+    <div class="title">👤 患者基本資料 (Patient Profile)</div>
+    
+    <div class="form-grid">
+      <!-- A. 身分資訊 -->
+      <div class="section-divider">一、身分與年齡</div>
+      <div class="input-group">
+        <label>姓名 (Name)</label>
+        <input id="name" placeholder="姓名">
+      </div>
+      <div class="input-group">
+        <label>病歷號 (Chart No.)</label>
+        <input id="chartNo" placeholder="病歷號">
+      </div>
+      <div class="input-group">
+        <label>性別 (Gender)</label>
+        <select id="gender">
+          <option value="Male">男 (Male)</option>
+          <option value="Female">女 (Female)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>西元出生年月日</label>
+        <input id="dob" type="date" onchange="calculateAges()">
+      </div>
+      <div class="input-group">
+        <label>目前年齡 (Now AGE)</label>
+        <input id="nowAge" readonly disabled>
+      </div>
+      <div class="input-group">
+        <label>手術年齡 (OP Age)</label>
+        <input id="opAge" readonly disabled>
+      </div>
+      <div class="input-group">
+        <label>手術日期 (OP Date)</label>
+        <input id="opDate" type="date" onchange="calculateAges()">
+      </div>
+      <div class="input-group">
+        <label>側邊 Side (雙0單1)</label>
+        <input id="side" placeholder="雙0單1">
+      </div>
+
+      <!-- B. 臨床檢驗與評分 -->
+      <div class="section-divider">二、手術與檢驗指標</div>
+      <div class="input-group">
+        <label>NP (0/1有)</label>
+        <input id="np" placeholder="0/1">
+      </div>
+      <div class="input-group">
+        <label>診斷 (Diagnosis)</label>
+        <input id="diagnosis" placeholder="文字輸入">
+      </div>
+      <div class="input-group">
+        <label>Steroid</label>
+        <input id="steroid" placeholder="藥物資訊">
+      </div>
+      <div class="input-group">
+        <label>Macrolide (0.1)</label>
+        <input id="macro_01" placeholder="劑量/狀態">
+      </div>
+      <div class="input-group">
+        <label>Mac' (Clarithromycin 1)</label>
+        <input id="macro_1" placeholder="劑量/狀態">
+      </div>
+      <div class="input-group">
+        <label>IgE</label>
+        <input id="ige" type="text" placeholder="數值">
+      </div>
+      <div class="input-group">
+        <label>Eosinophil (%)</label>
+        <input id="eosinophil_pct" placeholder="百分比">
+      </div>
+      <div class="input-group">
+        <label>Eosinophil 個數</label>
+        <input id="eosinophil_count" placeholder="數值">
+      </div>
+      <div class="input-group">
+        <label>Peripheral Eosinophil</label>
+        <input id="peripheral_eo" placeholder="數值">
+      </div>
+      <div class="input-group">
+        <label>LM score (R)</label>
+        <input id="lm_r" placeholder="右側分數">
+      </div>
+      <div class="input-group">
+        <label>LM score (L)</label>
+        <input id="lm_l" placeholder="左側分數">
+      </div>
+      <div class="input-group">
+        <label>Polyp grading (R)</label>
+        <input id="polyp_r" placeholder="右側分級">
+      </div>
+
+      <!-- C. 病史與危險因子 -->
+      <div class="section-divider">三、病史與風險因子</div>
+      <div class="input-group">
+        <label>MAST (0/1)</label>
+        <input id="mast" placeholder="0/1">
+      </div>
+      <div class="input-group">
+        <label>Previous OP (0/1)</label>
+        <input id="prev_op" placeholder="0/1">
+      </div>
+      <div class="input-group">
+        <label>Asthma (0/1)</label>
+        <input id="asthma" placeholder="0/1">
+      </div>
+      <div class="input-group">
+        <label>Smoking (0/1)</label>
+        <input id="smoking" placeholder="0/1">
+      </div>
+      <div class="input-group">
+        <label>Smoking' (詳情)</label>
+        <input id="smoking_detail" placeholder="備註">
+      </div>
+      <div class="input-group">
+        <label>Drug Allergy (0/1)</label>
+        <input id="drug_allergy" placeholder="0/1">
+      </div>
+      <div class="input-group full-width">
+        <label>Drug Allergy (詳情)</label>
+        <input id="allergy_detail" placeholder="過敏藥名">
+      </div>
+      <div class="input-group full-width">
+        <label>基本病史與診斷備註</label>
+        <textarea id="history" rows="2" placeholder="Asthma, Allergy, 其他臨床觀察..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-4">
+    
+    <!-- 左側：歷史紀錄比對 -->
+    <div class="card history">
+      <div class="title">🔍 歷史紀錄比對</div>
+      
+      <div class="flex gap-2 items-end mb-4">
+        <div class="flex-1">
+          <label>選擇歷史追蹤日期</label>
+          <input id="qDate" type="date">
+        </div>
+        <button class="btn-query w-24 rounded-lg" onclick="queryHistory()">查詢</button>
+      </div>
+      <div id="lMsg" class="msg"></div>
+
+      <div class="opacity-80">
+        <div class="section-divider">VAS 評分 (歷史)</div>
+        <div id="L_vas-fields"></div>
+
+        <div class="section-divider">SNOT-22 評分 (歷史)</div>
+        <div id="L_snot-fields"></div>
+        
+        <div class="mt-4">
+          <label>歷史備註</label>
+          <textarea id="L_Note" disabled rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側：新增本次紀錄 -->
+    <div class="card entry">
+      <div class="title">✍️ 新增本次追蹤</div>
+      
+      <div class="input-group mb-4">
+        <label>本次填寫日期</label>
+        <input id="trackDate" type="date">
+      </div>
+
+      <div class="section-divider">VAS 評分 (本次)</div>
+      <div id="vas-fields"></div>
+
+      <div class="section-divider">SNOT-22 評分 (本次)</div>
+      <div id="snot-fields"></div>
+
+      <div class="mt-4">
+        <label>本次填寫備註</label>
+        <textarea id="note" rows="2" placeholder="請輸入本次看診觀察..."></textarea>
+      </div>
+
+      <button id="btnSubmit" onclick="submit()">確認送出本次紀錄</button>
+      <div id="rMsg" class="msg"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbyUs4b6HiLGSHO2JwZs-OYpVH4g12MxsOBQ-eN3c60Qewb14s9_L0DCoLpPsOYNxEY4fw/exec";
+
+  const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "鼻部臭味", "咳嗽", "鼻音變化"];
+  const snotItems = ["擤鼻涕", "打噴嚏", "流鼻涕", "鼻塞", "嗅覺喪失", "咳嗽", "鼻涕倒流", "濃稠分泌物", "耳朵悶塞", "入睡困難", "疲勞", "挫折易怒"];
+
+  window.onload = function() {
+    const today = new Date().toISOString().split('T')[0];
+    $('trackDate').value = today;
+    initScales();
+  };
+
+  function initScales() {
+    const containers = [
+      { id: 'vas-fields', items: vasItems, max: 10, prefix: '' },
+      { id: 'snot-fields', items: snotItems, max: 5, prefix: '' },
+      { id: 'L_vas-fields', items: vasItems, max: 10, prefix: 'L_' },
+      { id: 'L_snot-fields', items: snotItems, max: 5, prefix: 'L_' }
+    ];
+
+    containers.forEach(c => {
+      const el = $(c.id);
+      const isHistory = c.prefix === 'L_';
+      c.items.forEach((item, idx) => {
+        el.innerHTML += `
+          <div class="symptom-row">
+            <span>${item}</span>
+            <div class="flex items-center gap-2">
+              <input type="range" class="${isHistory ? '' : (c.max===10?'vas-input':'snot-input')} w-24" 
+                min="0" max="${c.max}" value="0" 
+                ${isHistory ? 'disabled' : `oninput="this.nextElementSibling.innerText = this.value"`}>
+              <span class="score-badge">0</span>
+            </div>
+          </div>
+        `;
+      });
+    });
+  }
+
+  function calculateAges() {
+    const dobValue = $('dob').value;
+    const opValue = $('opDate').value;
+    if (!dobValue) return;
+
+    const dob = new Date(dobValue);
+    const today = new Date();
+    
+    let nowAge = today.getFullYear() - dob.getFullYear();
+    if (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate())) nowAge--;
+    $('nowAge').value = nowAge;
+
+    if (opValue) {
+      const opDate = new Date(opValue);
+      let opAge = opDate.getFullYear() - dob.getFullYear();
+      if (opDate < new Date(opDate.getFullYear(), dob.getMonth(), dob.getDate())) opAge--;
+      $('opAge').value = opAge;
+    }
+  }
+
+  async function queryHistory() {
+    const chart = $('chartNo').value.trim();
+    const date = $('qDate').value;
+    if (!chart || !date) return ($('lMsg').innerHTML = '<span class="warn">請輸入病歷號並選擇日期</span>');
+
+    $('lMsg').textContent = '查詢歷史中...';
+
+    try {
+      const resp = await fetch(`${GAS_URL}?chart=${encodeURIComponent(chart)}&date=${date}`);
+      const rec = await resp.json();
+
+      if (!rec || Object.keys(rec).length === 0) {
+        $('lMsg').innerHTML = '<span class="warn">查無該日紀錄</span>';
+        return;
+      }
+
+      $('lMsg').innerHTML = '<span class="ok">✅ 已載入歷史</span>';
+      $('L_Note').value = rec.Note || '';
+      
+      const lVas = document.querySelectorAll('#L_vas-fields .score-badge');
+      const lSnot = document.querySelectorAll('#L_snot-fields .score-badge');
+      const lVasRange = document.querySelectorAll('#L_vas-fields input');
+      const lSnotRange = document.querySelectorAll('#L_snot-fields input');
+
+      if(rec.vasScores) rec.vasScores.forEach((s, i) => { 
+        if(lVas[i]) { lVas[i].innerText = s; lVasRange[i].value = s; }
+      });
+      if(rec.snotScores) rec.snotScores.forEach((s, i) => { 
+        if(lSnot[i]) { lSnot[i].innerText = s; lSnotRange[i].value = s; }
+      });
+
+    } catch (e) {
+      $('lMsg').innerHTML = '<span class="warn">無法連線，請檢查 GAS 網址</span>';
+    }
+  }
+
+  async function submit() {
+    const chart = $('chartNo').value.trim();
+    if (!chart) return ($('rMsg').innerHTML = '<span class="warn">❌ 請填寫病歷號</span>');
+
+    const btn = $('btnSubmit');
+    btn.disabled = true;
+    btn.innerText = '儲存中...';
+
+    const vasScores = Array.from(document.querySelectorAll('.vas-input')).map(i => parseInt(i.value));
+    const snotScores = Array.from(document.querySelectorAll('.snot-input')).map(i => parseInt(i.value));
+
+    const payload = {
+      ChartNo: chart,
+      Name: $('name').value,
+      Gender: $('gender').value,
+      DOB: $('dob').value,
+      OPDate: $('opDate').value,
+      Side: $('side').value,
+      NP: $('np').value,
+      Diagnosis: $('diagnosis').value,
+      Steroid: $('steroid').value,
+      Macro_01: $('macro_01').value,
+      Macro_1: $('macro_1').value,
+      IgE: $('ige').value,
+      Eosinophil_Pct: $('eosinophil_pct').value,
+      Eosinophil_Count: $('eosinophil_count').value,
+      Peripheral_EO: $('peripheral_eo').value,
+      LM_R: $('lm_r').value,
+      LM_L: $('lm_l').value,
+      Polyp_R: $('polyp_r').value,
+      MAST: $('mast').value,
+      Prev_OP: $('prev_op').value,
+      Asthma: $('asthma').value,
+      Smoking: $('smoking').value,
+      Smoking_Detail: $('smoking_detail').value,
+      Drug_Allergy: $('drug_allergy').value,
+      Allergy_Detail: $('allergy_detail').value,
+      TrackDate: $('trackDate').value,
+      vasScores: vasScores,
+      snotScores: snotScores,
+      Note: $('note').value,
+      HistoryNote: $('history').value,
+      Timestamp: new Date().toISOString()
+    };
+
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+      $('rMsg').innerHTML = '<span class="ok">🎉 紀錄成功送出！</span>';
+      $('qDate').value = $('trackDate').value;
+    } catch (e) {
+      $('rMsg').innerHTML = '<span class="warn">儲存失敗，請再試一次</span>';
+    } finally {
+      btn.disabled = false;
+      btn.innerText = '確認送出本次紀錄';
+    }
+  }
+</script>
+</body>
+</html>
