@@ -52,20 +52,6 @@
     .profile-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
     @media(max-width: 1024px) { .profile-grid { grid-template-columns: 1fr; } }
 
-
-    /* 密碼彈窗 */
-    .password-modal-backdrop {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
-      display: none; align-items: center; justify-content: center; z-index: 9999;
-      padding: 16px;
-    }
-    .password-modal {
-      width: 100%; max-width: 380px; background: #fff; border-radius: 18px;
-      padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.25);
-    }
-    .password-error { color: #dc2626; font-weight: 700; font-size: 14px; min-height: 22px; }
-
-
     /* 摺疊內容控制 */
     #adminContent { display: none; overflow: hidden; transition: max-height 0.3s ease-out; }
     #patientCardSummary { display: none; }
@@ -220,29 +206,9 @@
   </div>
 </div>
 
-
-<!-- 密碼輸入彈窗 -->
-<div id="passwordModal" class="password-modal-backdrop" >
-  <div class="password-modal">
-    <div class="text-xl font-extrabold text-slate-800 mb-2">🔐 請輸入管理密碼</div>
-    <div class="text-sm text-slate-500 mb-4">輸入正確密碼後，才能展開編輯基本資料。</div>
-
-    <label>管理密碼</label>
-    <input id="adminPassword" type="password" placeholder="請輸入密碼" onkeydown="handlePasswordKeydown(event)">
-    <div id="passwordMsg" class="password-error mt-2"></div>
-
-    <div class="flex gap-3 mt-5">
-      <button class="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold" onclick="closePasswordModal()">取消</button>
-      <button class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold" onclick="confirmPassword()">確認</button>
-    </div>
-  </div>
-</div>
-
 <script>
   const $ = id => document.getElementById(id);
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyUs4b6HiLGSHO2JwZs-OYpVH4g12MxsOBQ-eN3c60Qewb14s9_L0DCoLpPsOYNxEY4fw/exec";
-  const ADMIN_PASSWORD = "1234";
-  let isAdminUnlocked = false;
 
   const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "鼻部臭味", "咳嗽", "鼻音變化"];
   const snotItems = ["擤鼻涕", "打噴嚏", "流鼻涕", "鼻塞", "嗅覺喪失", "咳嗽", "鼻涕倒流", "濃稠分泌物", "耳朵悶塞", "入睡困難", "疲勞", "挫折易怒"];
@@ -254,63 +220,17 @@
     initScales();
   };
 
-  // 摺疊/展開切換：第一次展開需輸入管理密碼
+  // 摺疊/展開切換
   function toggleAdminContent() {
     const content = $('adminContent');
     const btn = $('toggleBtn');
-
     if (content.style.display === 'block') {
       content.style.display = 'none';
-        btn.innerHTML = "➕ 展開編輯資料";
-        isAdminUnlocked = false; // ⭐唯一新增
-      return;
+      btn.innerHTML = "➕ 展開編輯資料";
+    } else {
+      content.style.display = 'block';
+      btn.innerHTML = "➖ 收合資料區塊";
     }
-
-    if (!isAdminUnlocked) {
-      openPasswordModal();
-      return;
-    }
-
-    openAdminContent();
-  }
-
-  function openAdminContent() {
-    $('adminContent').style.display = 'block';
-    $('toggleBtn').innerHTML = "➖ 收合資料區塊";
-  }
-
-  function openPasswordModal() {
-    $('passwordModal').style.display = 'flex';
-    $('adminPassword').value = '';
-    $('passwordMsg').innerText = '';
-    setTimeout(() => $('adminPassword').focus(), 50);
-  }
-
-  function closePasswordModal() {
-    $('passwordModal').style.display = 'none';
-  }
-
-  function closePasswordModalByBackdrop(event) {
-    if (event.target.id === 'passwordModal') closePasswordModal();
-  }
-
-  function handlePasswordKeydown(event) {
-    if (event.key === 'Enter') confirmPassword();
-    if (event.key === 'Escape') closePasswordModal();
-  }
-
-  function confirmPassword() {
-    const pwd = $('adminPassword').value.trim();
-
-    if (pwd !== ADMIN_PASSWORD) {
-      $('passwordMsg').innerText = '密碼錯誤，請重新輸入';
-      $('adminPassword').select();
-      return;
-    }
-
-    isAdminUnlocked = true;
-    closePasswordModal();
-    openAdminContent();
   }
 
   // 開啟病患模式
