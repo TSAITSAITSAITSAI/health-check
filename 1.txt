@@ -1,0 +1,69 @@
+一、身分與年齡
+		姓名		
+		Gender	
+		西元出生年月日	
+		OP Age
+	  Now AGE	
+	  病歷號
+	  手術日期	
+		Side (雙0單1)
+			
+二、臨床檢驗指標
+				NP (0/1有)	
+				診斷	
+				steroid	Macrolide(0.1)	
+				Mac'(Clarithromycin 1)	
+				IgE	Eosinophil	
+				Eosinophil's 個數	
+				Peripheral eosinophil	
+				
+三、風險因子與備註
+				MAST(0/1)	
+				previous OP(0/1)	
+				Asthma(0/1)	
+				Drug Allergy(0/1)	
+				Drug Allergy'	
+				Smoking(0/1)	
+				Smoking'	
+				LM score(R)	
+				LM score(L)	
+				Polyp grading(R)	
+				基本病史	
+				
+			VAS 自覺症狀評分	
+				鼻塞	
+				流鼻涕
+					鼻涕倒流
+						嗅覺低下	
+						頭痛
+							臉部疼痛
+								頭部腫脹	
+								鼻部臭味	
+								咳嗽
+									鼻音變化	
+									VAS0	
+									
+									SNOT-22 生活品質評估
+									擤鼻涕	
+									打噴嚏	
+									流鼻涕	
+									鼻塞	
+									嗅覺喪失
+										咳嗽	
+										鼻涕倒流
+											濃稠分泌物	
+											耳朵悶塞	
+											頭昏頭痛	
+											耳痛	
+											臉部疼痛
+												入睡困難
+													夜間醒來	
+													睡品不佳	
+													起床覺累	
+													疲勞
+														生產力降	
+														注意力低	
+														挫折易怒	
+														悲傷憂愁	
+														侷促不安	
+														SNOT0	
