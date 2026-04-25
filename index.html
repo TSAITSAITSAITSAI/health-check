@@ -43,6 +43,20 @@
       background: #edf2f7; padding: 4px 10px; border-radius: 8px;
       font-weight: bold; min-width: 32px; text-align: center; color: #1a73e8;
     }
+    .symptom-label {
+      flex: 1;
+      min-width: 0;
+      padding-right: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+    }
+    .symptom-control {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
     .btn-toggle { background: #e2e8f0; color: #475569; padding: 8px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; }
     .btn-save { background: #059669; color: white; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: 700; }
@@ -99,36 +113,39 @@
           <div class="section-title text-blue-600">一、身分與年齡</div>
           <div class="grid grid-cols-2 gap-3">
             <div class="field-group"><label>姓名</label><input id="name"></div>
+            <div class="field-group"><label>Gender</label><select id="gender"><option value="Male">男</option><option value="Female">女</option></select></div>
+          </div>
+          <div class="field-group"><label>西元出生年月日</label><input id="dob" type="date" onchange="calculateAges()"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field-group"><label>OP Age</label><input id="opAge" readonly disabled></div>
+            <div class="field-group"><label>Now AGE</label><input id="nowAge" readonly disabled></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
             <div class="field-group"><label>病歷號</label><input id="chartNo"></div>
+            <div class="field-group"><label>手術日期</label><input id="opDate" type="date" onchange="calculateAges()"></div>
           </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="field-group"><label>性別</label><select id="gender"><option value="Male">男</option><option value="Female">女</option></select></div>
-            <div class="field-group"><label>側邊 (Side)</label><input id="side"></div>
-          </div>
-          <div class="field-group"><label>出生日期</label><input id="dob" type="date" onchange="calculateAges()"></div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="field-group"><label>目前年齡</label><input id="nowAge" readonly disabled></div>
-            <div class="field-group"><label>手術年齡</label><input id="opAge" readonly disabled></div>
-          </div>
-          <div class="field-group"><label>手術日期</label><input id="opDate" type="date" onchange="calculateAges()"></div>
+          <div class="field-group"><label>Side (雙0單1)</label><input id="side"></div>
         </div>
 
         <!-- 第二區：檢驗 -->
         <div class="space-y-2">
           <div class="section-title text-green-600">二、臨床檢驗指標</div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="field-group"><label>NP (0/1)</label><input id="np"></div>
-            <div class="field-group"><label>IgE 指數</label><input id="ige"></div>
-          </div>
-          <div class="field-group"><label>診斷名稱</label><input id="diagnosis"></div>
-          <div class="grid grid-cols-3 gap-2">
-            <div class="field-group"><label>LM(R)</label><input id="lm_r"></div>
-            <div class="field-group"><label>LM(L)</label><input id="lm_l"></div>
-            <div class="field-group"><label>Polyp(R)</label><input id="polyp_r"></div>
+            <div class="field-group"><label>NP (0/1有)</label><input id="np"></div>
+            <div class="field-group"><label>診斷</label><input id="diagnosis"></div>
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="field-group"><label>Eos(%)</label><input id="eosinophil_pct"></div>
-            <div class="field-group"><label>Eos Count</label><input id="eosinophil_count"></div>
+            <div class="field-group"><label>steroid</label><input id="steroid"></div>
+            <div class="field-group"><label>Macrolide(0.1)</label><input id="macrolide"></div>
+          </div>
+          <div class="field-group"><label>Mac'(Clarithromycin 1)</label><input id="clarithromycin"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field-group"><label>IgE</label><input id="ige"></div>
+            <div class="field-group"><label>Eosinophil</label><input id="eosinophil"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field-group"><label>Eosinophil's 個數</label><input id="eosinophil_count"></div>
+            <div class="field-group"><label>Peripheral eosinophil</label><input id="peripheral_eosinophil"></div>
           </div>
         </div>
 
@@ -136,15 +153,24 @@
         <div class="space-y-2">
           <div class="section-title text-red-600">三、風險因子與備註</div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="field-group"><label>MAST</label><input id="mast"></div>
-            <div class="field-group"><label>Prev OP</label><input id="prev_op"></div>
+            <div class="field-group"><label>MAST(0/1)</label><input id="mast"></div>
+            <div class="field-group"><label>previous OP(0/1)</label><input id="prev_op"></div>
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="field-group"><label>Asthma</label><input id="asthma"></div>
-            <div class="field-group"><label>Smoking</label><input id="smoking"></div>
+            <div class="field-group"><label>Asthma(0/1)</label><input id="asthma"></div>
+            <div class="field-group"><label>Drug Allergy(0/1)</label><input id="drug_allergy"></div>
           </div>
-          <div class="field-group"><label>藥物/過敏詳情</label><input id="allergy_detail"></div>
-          <div class="field-group"><label>長期病史備註</label><textarea id="history" rows="2"></textarea></div>
+          <div class="field-group"><label>Drug Allergy'</label><input id="allergy_detail"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field-group"><label>Smoking(0/1)</label><input id="smoking"></div>
+            <div class="field-group"><label>Smoking'</label><input id="smoking_detail"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="field-group"><label>LM score(R)</label><input id="lm_r"></div>
+            <div class="field-group"><label>LM score(L)</label><input id="lm_l"></div>
+            <div class="field-group"><label>Polyp grading(R)</label><input id="polyp_r"></div>
+          </div>
+          <div class="field-group"><label>基本病史</label><textarea id="history" rows="2"></textarea></div>
         </div>
       </div>
 
@@ -222,7 +248,7 @@
 
 
 <!-- 密碼輸入彈窗 -->
-<div id="passwordModal" class="password-modal-backdrop" >
+<div id="passwordModal" class="password-modal-backdrop">
   <div class="password-modal">
     <div class="text-xl font-extrabold text-slate-800 mb-2">🔐 請輸入管理密碼</div>
     <div class="text-sm text-slate-500 mb-4">輸入正確密碼後，才能展開編輯基本資料。</div>
@@ -244,8 +270,8 @@
   const ADMIN_PASSWORD = "1234";
   let isAdminUnlocked = false;
 
-  const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "鼻部臭味", "咳嗽", "鼻音變化"];
-  const snotItems = ["擤鼻涕", "打噴嚏", "流鼻涕", "鼻塞", "嗅覺喪失", "咳嗽", "鼻涕倒流", "濃稠分泌物", "耳朵悶塞", "入睡困難", "疲勞", "挫折易怒"];
+  const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "頭部腫脹", "鼻部臭味", "咳嗽", "鼻音變化"];
+  const snotItems = ["擤鼻涕", "打噴嚏", "流鼻涕", "鼻塞", "嗅覺喪失", "咳嗽", "鼻涕倒流", "濃稠分泌物", "耳朵悶塞", "頭昏頭痛", "耳痛", "臉部疼痛", "入睡困難", "夜間醒來", "睡品不佳", "起床覺累", "疲勞", "生產力降", "注意力低", "挫折易怒", "悲傷憂愁", "侷促不安"];
 
   window.onload = function() {
     const today = new Date().toISOString().split('T')[0];
@@ -261,8 +287,8 @@
 
     if (content.style.display === 'block') {
       content.style.display = 'none';
-        btn.innerHTML = "➕ 展開編輯資料";
-        isAdminUnlocked = false; // ⭐唯一新增
+      btn.innerHTML = "➕ 展開編輯資料";
+      isAdminUnlocked = false;
       return;
     }
 
@@ -354,8 +380,8 @@
       c.items.forEach(item => {
         el.innerHTML += `
           <div class="symptom-row">
-            <span class="text-sm font-medium text-gray-700">${item}</span>
-            <div class="flex items-center gap-3">
+            <span class="symptom-label">${item}</span>
+            <div class="symptom-control">
               <input type="range" class="${isHist ? '' : (c.max===10?'vas-input':'snot-input')} w-32 cursor-pointer" 
                 min="0" max="${c.max}" value="0" ${isHist ? 'disabled' : `oninput="this.nextElementSibling.innerText=this.value"`}>
               <span class="score-badge">0</span>
@@ -395,10 +421,13 @@
   function fillData(d) {
     const mapping = {
       chartNo: 'ChartNo', name: 'Name', gender: 'Gender', dob: 'DOB', opDate: 'OPDate',
-      side: 'Side', np: 'NP', diagnosis: 'Diagnosis', ige: 'IgE', lm_r: 'LM_R',
-      lm_l: 'LM_L', polyp_r: 'Polyp_R', eosinophil_pct: 'Eosinophil_Pct',
-      eosinophil_count: 'Eosinophil_Count', mast: 'MAST', prev_op: 'Prev_OP',
-      asthma: 'Asthma', smoking: 'Smoking', allergy_detail: 'Allergy_Detail', history: 'HistoryNote'
+      side: 'Side', np: 'NP', diagnosis: 'Diagnosis', steroid: 'Steroid',
+      macrolide: 'Macrolide', clarithromycin: 'Clarithromycin', ige: 'IgE',
+      eosinophil: 'Eosinophil', eosinophil_count: 'Eosinophil_Count',
+      peripheral_eosinophil: 'Peripheral_Eosinophil', mast: 'MAST', prev_op: 'Prev_OP',
+      asthma: 'Asthma', drug_allergy: 'Drug_Allergy', allergy_detail: 'Allergy_Detail',
+      smoking: 'Smoking', smoking_detail: 'Smoking_Detail', lm_r: 'LM_R',
+      lm_l: 'LM_L', polyp_r: 'Polyp_R', history: 'HistoryNote'
     };
     for(let id in mapping) { if($(id)) $(id).value = d[mapping[id]] || ''; }
     calculateAges();
@@ -416,7 +445,26 @@
         Gender: $('gender').value,
         DOB: $('dob').value, 
         OPDate: $('opDate').value,
+        Side: $('side').value,
+        NP: $('np').value,
         Diagnosis: $('diagnosis').value,
+        Steroid: $('steroid').value,
+        Macrolide: $('macrolide').value,
+        Clarithromycin: $('clarithromycin').value,
+        IgE: $('ige').value,
+        Eosinophil: $('eosinophil').value,
+        Eosinophil_Count: $('eosinophil_count').value,
+        Peripheral_Eosinophil: $('peripheral_eosinophil').value,
+        MAST: $('mast').value,
+        Prev_OP: $('prev_op').value,
+        Asthma: $('asthma').value,
+        Drug_Allergy: $('drug_allergy').value,
+        Allergy_Detail: $('allergy_detail').value,
+        Smoking: $('smoking').value,
+        Smoking_Detail: $('smoking_detail').value,
+        LM_R: $('lm_r').value,
+        LM_L: $('lm_l').value,
+        Polyp_R: $('polyp_r').value,
         HistoryNote: $('history').value 
     };
     try {
@@ -451,10 +499,14 @@
     if(!chart) return alert("病歷號不明，請先在上方載入患者");
     const btn = $('btnSubmit');
     btn.disabled = true; btn.innerText = '傳送數據中...';
+    const vasScores = Array.from(document.querySelectorAll('.vas-input')).map(i => parseInt(i.value));
+    const snotScores = Array.from(document.querySelectorAll('.snot-input')).map(i => parseInt(i.value));
     const payload = {
       action: "submitSurvey", ChartNo: chart, TrackDate: $('trackDate').value,
-      vasScores: Array.from(document.querySelectorAll('.vas-input')).map(i => parseInt(i.value)),
-      snotScores: Array.from(document.querySelectorAll('.snot-input')).map(i => parseInt(i.value)),
+      vasScores: vasScores,
+      snotScores: snotScores,
+      VAS0: vasScores.reduce((sum, value) => sum + value, 0),
+      SNOT0: snotScores.reduce((sum, value) => sum + value, 0),
       Note: $('note').value
     };
     try {
