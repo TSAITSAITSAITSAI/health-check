@@ -98,7 +98,8 @@
       <button id="toggleBtn" class="btn-toggle" onclick="toggleAdminContent()">➕ 展開編輯資料</button>
     </div>
 
-    <div id="adminContent">
+ 
+    <div id="adminContent">	
       <div class="bg-blue-50 p-4 rounded-xl my-6 flex gap-4 items-end">
         <div class="flex-1">
           <label>快速搜尋患者 (電話號碼)</label>
@@ -106,13 +107,15 @@
         </div>
         <button class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold" onclick="searchPatient()">搜尋載入</button>
       </div>
-
+      <div id="adminMsg" class="msg text-center mt-4"></div>
       <div class="profile-grid">
+	
         <div class="col-span-3">
           <div class="field-group">
-            <label>電話號碼（唯一識別）</label>
-            <input id="phone">
+            <label>電話號碼（唯一識別 不一樣為新增資料）</label>
+            <input id="phone">		
           </div>
+		  	 
         </div>
 
         <!-- 第一區：身分 -->
@@ -185,7 +188,7 @@
         <button class="btn-save flex-1" onclick="saveProfile()">💾 存檔基本資料</button>
         <button class="btn-patient-mode flex-1" onclick="switchToPatientMode()">🚀 開啟病患追蹤模式</button>
       </div>
-      <div id="adminMsg" class="msg text-center mt-4"></div>
+     
     </div>
   </div>
 
