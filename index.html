@@ -188,6 +188,7 @@
  <div class="field-group"><label>基本病史</label><textarea id="history" rows="2"></textarea></div>
       <div class="mt-8 flex gap-4">
         <button class="btn-save flex-1" onclick="saveProfile()">💾 存檔基本資料</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="deletePatientBasic()"> 刪除基本資料</button>
         <button class="btn-patient-mode flex-1" onclick="switchToPatientMode()">🚀 開啟病患追蹤模式</button>
       </div>
      
@@ -279,7 +280,7 @@
 
 <script>
   const $ = id => document.getElementById(id);
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbw42ByYXmpZgBpk-dxW85g8boELe-0Lqz2CAy-mzIbwgkA-Bamj05yYDS_uY_bEG3Tu/exec";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbxd8fyjrvBXwd0dH3k1nK6D2CL2UrC7iQeq6hMdSLBp7JwoOhdYow2OmGs6CGADjs1v/exec";
   let isAdminUnlocked = false;
   let loadedPatient = null;
   let isPatientMode = false;
@@ -760,6 +761,44 @@ if (!name) return alert("請先填寫姓名");
     } catch(e) { $('rMsg').innerHTML = '❌ 送出失敗'; }
     finally { btn.disabled = false; btn.innerText = '確認送出本次紀錄'; }
   }
+async function deletePatientBasic() {
+  const chartNo = $('chartNo').value.trim();
+
+  if (!chartNo) {
+    alert('請先輸入病歷號');
+    return;
+  }
+
+  if (!confirm('確定要刪除這位患者的基本資料嗎？\n病歷號：' + chartNo)) {
+    return;
+  }
+
+  $('adminMsg').innerHTML = '🗑️ 正在刪除基本資料...';
+
+  try {
+    const resp = await fetch(`${GAS_URL}?action=deleteProfile&chart=${encodeURIComponent(chartNo)}&t=${Date.now()}`);
+    const result = await resp.json();
+
+    if (!result.success) {
+      $('adminMsg').innerHTML = `<span class="text-red-600 font-bold">❌ ${result.message || '刪除失敗'}</span>`;
+      alert(result.message || '刪除失敗');
+      return;
+    }
+
+    loadedPatient = null;
+    clearProfileForm();
+    clearHistoryResult();
+    clearSurveyForm();
+    $('searchKey').value = '';
+
+    $('adminMsg').innerHTML = `<span class="text-green-600 font-bold">✅ ${result.message}</span>`;
+    alert('刪除成功');
+
+  } catch (e) {
+    $('adminMsg').innerHTML = '❌ 刪除失敗，無法連線';
+    alert('刪除失敗：' + e.message);
+  }
+}
 </script>
 </body>
 </html>
