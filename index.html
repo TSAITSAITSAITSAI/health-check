@@ -83,6 +83,12 @@
     /* 摺疊內容控制 */
     #adminContent { display: none; overflow: hidden; transition: max-height 0.3s ease-out; }
     #patientCardSummary { display: none; }
+    
+    /* 預設先隱藏下方追蹤區，避免載入時閃一下 */
+.main-container > .grid {
+  display: none;
+}
+
   </style>
 </head>
 <body>
@@ -112,10 +118,10 @@
         <!-- 第一區：身分 -->
         <div class="space-y-2">
           <div class="section-title text-blue-600">一、身分與年齡</div>
-         <div class="field-group"><label>病歷號（唯一識別，一樣更新，不一樣新增）</label><input id="chartNo"></div>
+         <div class="field-group"><label>病歷號（唯一識別碼，同樣存檔更新，不一樣存新增）</label><input id="chartNo"></div>
           <div class="grid grid-cols-2 gap-3">
+          	  <div class="field-group"><label>姓名</label><input id="name"></div>
               <div class="field-group"><label>Gender</label><select id="gender"><option value="Male">男</option><option value="Female">女</option></select></div>
-            <div class="field-group"><label>姓名</label><input id="name"></div>
           </div>
              <div class="col-span-3">
           <div class="field-group">
