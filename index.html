@@ -222,6 +222,7 @@
           <input id="qDate" type="date">
         </div>
         <button class="bg-slate-600 text-white px-4 py-3 rounded-lg h-[48px] font-bold" onclick="queryHistory()">查詢</button>
+ 
       </div>
       <div id="lMsg" class="msg mb-2"></div>
       <div class="opacity-75">
@@ -681,6 +682,34 @@ if (!name) return alert("請先填寫姓名");
       $('adminMsg').innerHTML = "<span class='text-green-600 font-bold'>✅ 基本資料已存檔</span>";
     } catch(e) { $('adminMsg').innerHTML = "❌ 存檔失敗"; }
   }
+  
+  async function queryLastHistoryDate() {
+  const chart = $('chartNo').value.trim();
+
+  if (!chart) {
+    return alert("請先載入患者或填寫病歷號");
+  }
+
+  $('lMsg').textContent = '正在查詢最後一次紀錄日期...';
+
+  try {
+    const resp = await fetch(`${GAS_URL}?action=lastTrackingDate&chart=${encodeURIComponent(chart)}`);
+    const result = await resp.json();
+
+    if (!result || !result.success || !result.TrackDate) {
+      $('lMsg').innerHTML = '<span class="text-orange-600 font-bold">⚠️ 找不到最後一次追蹤紀錄</span>';
+      return;
+    }
+
+    $('qDate').value = result.TrackDate;
+    $('lMsg').innerHTML = `<span class="text-green-600 font-bold">✅ 最後一次紀錄日期：${result.TrackDate}</span>`;
+
+    queryHistory();
+
+  } catch (e) {
+    $('lMsg').textContent = '查詢最後一次紀錄失敗';
+  }
+}
 
   // 查詢歷史紀錄
   async function queryHistory() {
