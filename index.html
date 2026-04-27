@@ -268,16 +268,146 @@
   const $ = id => document.getElementById(id);
   const GAS_URL = "https://script.google.com/macros/s/AKfycbztzoccTcKVez7BExT5TVnxYHZBf23u7Zgj5wRNeaziCm0o3LUa90Bol4l_1FCUZAte/exec";
   let isAdminUnlocked = false;
+  let loadedPatient = null;
+  let isPatientMode = false;
 
   const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "頭部腫脹", "鼻部臭味", "咳嗽", "鼻音變化"];
   const snotItems = ["擤鼻涕", "打噴嚏", "流鼻涕", "鼻塞", "嗅覺喪失", "咳嗽", "鼻涕倒流", "濃稠分泌物", "耳朵悶塞", "頭昏頭痛", "耳痛", "臉部疼痛", "入睡困難", "夜間醒來", "睡品不佳", "起床覺累", "疲勞", "生產力降", "注意力低", "挫折易怒", "悲傷憂愁", "侷促不安"];
 
   window.onload = function() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayString();
     $('trackDate').value = today;
     $('p_disp_date').innerText = today;
     initScales();
+    resetToInitialState();
+    createExcelStatusBadge();
+    checkExcelConnection();
   };
+
+  // 回到初始畫面：基本資料收合、資料清空、追蹤模式關閉
+  function resetToInitialState() {
+    isAdminUnlocked = false;
+    loadedPatient = null;
+    isPatientMode = false;
+
+    $('adminContent').style.display = 'none';
+    $('toggleBtn').innerHTML = "➕ 展開編輯資料";
+    $('patientCardSummary').style.display = 'none';
+
+    clearProfileForm();
+    clearHistoryResult();
+    clearSurveyForm();
+
+    $('adminMsg').innerHTML = '';
+    $('lMsg').innerHTML = '';
+    $('rMsg').innerHTML = '';
+    $('searchKey').value = '';
+    $('qChartNo').value = '';
+    $('qDate').value = '';
+    showHistoryChartInput(true);
+    $('chartNo').disabled = false;
+    $('opAge').disabled = false;
+    $('opAge').readOnly = false;
+    $('history').rows = 5;
+  }
+
+
+  function createExcelStatusBadge() {
+    if ($('excelStatusBadge')) return;
+
+    const badge = document.createElement('div');
+    badge.id = 'excelStatusBadge';
+    badge.style.position = 'fixed';
+    badge.style.right = '16px';
+    badge.style.bottom = '16px';
+    badge.style.zIndex = '9998';
+    badge.style.padding = '10px 14px';
+    badge.style.borderRadius = '999px';
+    badge.style.fontWeight = '800';
+    badge.style.fontSize = '14px';
+    badge.style.boxShadow = '0 8px 20px rgba(0,0,0,.15)';
+    badge.style.background = '#e2e8f0';
+    badge.style.color = '#475569';
+    badge.innerText = '🟡 Excel 連線檢查中';
+    document.body.appendChild(badge);
+  }
+
+  function setExcelStatus(ok, text) {
+    const badge = $('excelStatusBadge');
+    if (!badge) return;
+
+    badge.innerText = ok ? `🟢 ${text}` : `🔴 ${text}`;
+    badge.style.background = ok ? '#dcfce7' : '#fee2e2';
+    badge.style.color = ok ? '#166534' : '#991b1b';
+  }
+
+  async function checkExcelConnection() {
+    try {
+      const resp = await fetch(`${GAS_URL}?action=testConnection&t=${Date.now()}`);
+      const result = await resp.json();
+      setExcelStatus(!!result.success, result.success ? '已連到 Excel' : 'Excel 連線失敗');
+    } catch (e) {
+      setExcelStatus(false, 'Excel 連線失敗');
+    }
+  }
+
+  function todayString() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function parseYmd(value) {
+    if (!value) return null;
+    const parts = String(value).substring(0, 10).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    return { year: parts[0], month: parts[1], day: parts[2] };
+  }
+
+  function showHistoryChartInput(show) {
+    const input = $('qChartNo');
+    if (!input) return;
+    const wrapper = input.closest('.flex-1');
+    if (wrapper) wrapper.style.display = show ? '' : 'none';
+  }
+
+  function clearProfileForm() {
+    const ids = [
+      'name', 'dob', 'opAge', 'nowAge', 'chartNo', 'opDate', 'side',
+      'np', 'diagnosis', 'steroid', 'macrolide', 'clarithromycin', 'ige',
+      'eosinophil', 'eosinophil_count', 'peripheral_eosinophil', 'mast',
+      'prev_op', 'asthma', 'drug_allergy', 'allergy_detail', 'smoking',
+      'smoking_detail', 'lm_r', 'lm_l', 'polyp_r', 'history'
+    ];
+
+    ids.forEach(id => {
+      if ($(id)) $(id).value = '';
+    });
+
+    if ($('gender')) $('gender').value = 'Male';
+  }
+
+  function clearHistoryResult() {
+    document.querySelectorAll('#L_vas-fields .score-badge, #L_snot-fields .score-badge')
+      .forEach(x => x.innerText = '0');
+
+    document.querySelectorAll('#L_vas-fields input, #L_snot-fields input')
+      .forEach(x => x.value = 0);
+  }
+
+  function clearSurveyForm() {
+    const today = todayString();
+    $('trackDate').value = today;
+    $('p_disp_date').innerText = today;
+    $('note').value = '';
+
+    document.querySelectorAll('.vas-input, .snot-input').forEach(input => {
+      input.value = 0;
+      if (input.nextElementSibling) input.nextElementSibling.innerText = '0';
+    });
+  }
 
   // 摺疊/展開切換：第一次展開需輸入管理密碼
   function toggleAdminContent() {
@@ -336,7 +466,6 @@
     $('passwordMsg').innerText = '驗證中...';
 
     try {
-      // GitHub Pages 呼叫 Apps Script：用 GET 驗證，避免 CORS 預檢問題
       const resp = await fetch(`${GAS_URL}?action=verifyPassword&password=${encodeURIComponent(pwd)}`);
       const result = await resp.json();
 
@@ -347,9 +476,14 @@
       }
 
       isAdminUnlocked = true;
+      loadedPatient = null;
+      clearProfileForm();
+      clearHistoryResult();
+      clearSurveyForm();
+      $('adminMsg').innerHTML = '';
+      $('searchKey').value = '';
       closePasswordModal();
       openAdminContent();
-
     } catch (e) {
       $('passwordMsg').innerText = '無法連線驗證密碼，請稍後再試';
     }
@@ -357,27 +491,44 @@
 
   // 開啟病患模式
   function switchToPatientMode() {
-    const name = $('name').value;
-    const chart = $('chartNo').value;
-    if(!chart) return alert("請先填寫或搜尋病歷號");
+    const name = $('name').value.trim();
+    const chart = $('chartNo').value.trim();
+
+    if (!loadedPatient || !loadedPatient.Name) return alert("請先搜尋並載入患者姓名後，才能開啟追蹤模式");
+    if (!name) return alert("請先確認患者姓名");
+    if (!chart) return alert("請先填寫或搜尋病歷號");
+
+    const loadedName = String(loadedPatient.Name || '').trim();
+    const loadedChart = String(loadedPatient.ChartNo || '').trim();
+    if (loadedName !== name && loadedChart !== chart) {
+      return alert("目前資料不是已搜尋到的患者，請重新搜尋患者");
+    }
+
+    isPatientMode = true;
+    $('chartNo').disabled = true;
 
     // 關閉醫護區
     $('adminContent').style.display = 'none';
     $('toggleBtn').innerHTML = "➕ 展開編輯資料";
-    
+
     // 顯示病患確認卡
     $('patientCardSummary').style.display = 'block';
-    $('p_disp_name').innerText = name || "未登錄姓名";
+    $('p_disp_name').innerText = name;
     $('p_disp_chart').innerText = "Chart No. " + chart;
-    
+
     // 連動同步
     $('qChartNo').value = chart;
-    
+    $('qDate').value = todayString();
+    showHistoryChartInput(false);
+
     // 移動視角
     window.scrollTo({ top: $('patientCardSummary').offsetTop - 20, behavior: 'smooth' });
   }
 
   function exitPatientMode() {
+    isPatientMode = false;
+    $('chartNo').disabled = false;
+    showHistoryChartInput(true);
     $('patientCardSummary').style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -393,6 +544,7 @@
     configs.forEach(c => {
       const el = $(c.id);
       const isHist = c.prefix === 'L_';
+      el.innerHTML = '';
       c.items.forEach(item => {
         el.innerHTML += `
           <div class="symptom-row">
@@ -408,13 +560,23 @@
   }
 
   function calculateAges() {
-    const dobVal = $('dob').value;
-    const opVal = $('opDate').value;
-    if (!dobVal) return;
-    const dob = new Date(dobVal);
+    const dobParts = parseYmd($('dob').value);
+
+    if (!dobParts) {
+      $('nowAge').value = '';
+      return;
+    }
+
     const today = new Date();
-    $('nowAge').value = today.getFullYear() - dob.getFullYear();
-    if(opVal) $('opAge').value = new Date(opVal).getFullYear() - dob.getFullYear();
+    let age = today.getFullYear() - dobParts.year;
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+
+    if (currentMonth < dobParts.month || (currentMonth === dobParts.month && currentDay < dobParts.day)) {
+      age--;
+    }
+
+    $('nowAge').value = age >= 0 ? age : '';
   }
 
   // 串接搜尋
@@ -427,16 +589,19 @@
       const data = await resp.json();
       if(data && data.ChartNo) {
         fillData(data);
+        loadedPatient = data;
         $('adminMsg').innerHTML = "<span class='text-green-600 font-bold'>✅ 載入成功</span>";
       } else {
-        $('adminMsg').innerHTML = "<span class='text-red-600 font-bold'>⚠️ 查無此人，請檢查輸入</span>";
+        loadedPatient = null;
+        clearProfileForm();
+        $('adminMsg').innerHTML = "<span class='text-red-600 font-bold'>⚠️ 查無此人，資料已清空</span>";
       }
     } catch(e) { $('adminMsg').innerHTML = "❌ 無法連線至雲端服務"; }
   }
 
   function fillData(d) {
     const mapping = {
-      chartNo: 'ChartNo', name: 'Name', gender: 'Gender', dob: 'DOB', opDate: 'OPDate',
+      chartNo: 'ChartNo', name: 'Name', gender: 'Gender', dob: 'DOB', opAge: 'OPAge', opDate: 'OPDate',
       side: 'Side', np: 'NP', diagnosis: 'Diagnosis', steroid: 'Steroid',
       macrolide: 'Macrolide', clarithromycin: 'Clarithromycin', ige: 'IgE',
       eosinophil: 'Eosinophil', eosinophil_count: 'Eosinophil_Count',
@@ -452,14 +617,17 @@
   // 存檔基本資料
   async function saveProfile() {
     const chart = $('chartNo').value.trim();
+    const name = $('name').value.trim();
+    if(!name) return alert("請先填寫姓名");
     if(!chart) return alert("請先填寫病歷號");
     $('adminMsg').innerHTML = "💾 正在同步基本資料至雲端...";
     const payload = { 
         action: "updateProfile", 
         ChartNo: chart, 
-        Name: $('name').value, 
+        Name: name, 
         Gender: $('gender').value,
-        DOB: $('dob').value, 
+        DOB: $('dob').value,
+        OPAge: $('opAge').value,
         OPDate: $('opDate').value,
         Side: $('side').value,
         NP: $('np').value,
@@ -485,15 +653,17 @@
     };
     try {
       await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-      $('adminMsg').innerHTML = "<span class='text-green-600 font-bold'>✅ 基本資料修改已存檔</span>";
+      loadedPatient = payload;
+      $('adminMsg').innerHTML = "<span class='text-green-600 font-bold'>✅ 基本資料已存檔</span>";
     } catch(e) { $('adminMsg').innerHTML = "❌ 存檔失敗"; }
   }
 
   // 查詢歷史紀錄
   async function queryHistory() {
-    const chart = $('qChartNo').value.trim();
-    const date = $('qDate').value;
-    if(!chart || !date) return alert("請填入病歷號與日期");
+    const chart = ($('qChartNo').value || $('chartNo').value).trim();
+    const date = $('qDate').value || todayString();
+    $('qDate').value = date;
+    if(!chart || !date) return alert("請先載入患者並選擇日期");
     $('lMsg').textContent = '正在讀取歷程數據...';
     try {
       const resp = await fetch(`${GAS_URL}?chart=${encodeURIComponent(chart)}&date=${date}`);
@@ -527,7 +697,9 @@
     };
     try {
       await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-      $('rMsg').innerHTML = '<span class="text-green-600 font-bold text-lg">🎉 本次評估已成功存檔！</span>';
+      resetToInitialState();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      alert("本次評估已成功存檔");
     } catch(e) { $('rMsg').innerHTML = '❌ 送出失敗'; }
     finally { btn.disabled = false; btn.innerText = '確認送出本次紀錄'; }
   }
