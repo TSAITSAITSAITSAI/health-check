@@ -204,11 +204,7 @@
     <!-- 左側：歷史紀錄 -->
     <div class="card history">
       <div class="title">🔍 歷史紀錄查詢</div>
-      <div class="flex gap-2 items-end mb-6">
-        <div class="flex-1">
-          <label>病歷號</label>
-          <input id="qChartNo" placeholder="請輸入病歷號">
-        </div>
+      <div class="flex gap-2 items-end mb-6">      
         <div class="flex-1">
           <label>選擇日期</label>
           <input id="qDate" type="date">
@@ -221,6 +217,10 @@
         <div id="L_vas-fields"></div>
         <div class="font-bold text-gray-500 border-b pb-1 mt-6 mb-2">歷史 SNOT-22 評分</div>
         <div id="L_snot-fields"></div>
+        <div class="mt-6">
+          <label>歷史症狀備註</label>
+          <textarea id="historyNote" rows="2" placeholder="查詢歷史紀錄後顯示備註..." readonly></textarea>
+        </div>
       </div>
     </div>
 
@@ -301,8 +301,7 @@
     $('adminMsg').innerHTML = '';
     $('lMsg').innerHTML = '';
     $('rMsg').innerHTML = '';
-    $('searchKey').value = '';
-    $('qChartNo').value = '';
+    $('searchKey').value = '';   
     $('qDate').value = '';
     showHistoryChartInput(true);
     $('chartNo').disabled = false;
@@ -395,6 +394,8 @@
 
     document.querySelectorAll('#L_vas-fields input, #L_snot-fields input')
       .forEach(x => x.value = 0);
+
+    if ($('historyNote')) $('historyNote').value = '';
   }
 
   function clearSurveyForm() {
@@ -517,7 +518,6 @@
     $('p_disp_chart').innerText = "Chart No. " + chart;
 
     // 連動同步
-    $('qChartNo').value = chart;
     $('qDate').value = todayString();
     showHistoryChartInput(false);
 
@@ -660,7 +660,7 @@
 
   // 查詢歷史紀錄
   async function queryHistory() {
-    const chart = ($('qChartNo').value || $('chartNo').value).trim();
+    const chart = ($('chartNo').value).trim();
     const date = $('qDate').value || todayString();
     $('qDate').value = date;
     if(!chart || !date) return alert("請先載入患者並選擇日期");
@@ -668,7 +668,10 @@
     try {
       const resp = await fetch(`${GAS_URL}?chart=${encodeURIComponent(chart)}&date=${date}`);
       const rec = await resp.json();
-      if(!rec || !rec.vasScores) return ($('lMsg').innerHTML = '<span class="text-orange-600 font-bold">⚠️ 該日無追蹤數據</span>');
+      if(!rec || !rec.vasScores) {
+        if ($('historyNote')) $('historyNote').value = '';
+        return ($('lMsg').innerHTML = '<span class="text-orange-600 font-bold">⚠️ 該日無追蹤數據</span>');
+      }
       $('lMsg').innerHTML = '<span class="text-green-600 font-bold">✅ 歷史紀錄載入成功</span>';
       const lVas = document.querySelectorAll('#L_vas-fields .score-badge');
       const lSnot = document.querySelectorAll('#L_snot-fields .score-badge');
@@ -676,12 +679,13 @@
       const lSnotR = document.querySelectorAll('#L_snot-fields input');
       rec.vasScores.forEach((s, i) => { if(lVas[i]) { lVas[i].innerText = s; lVasR[i].value = s; } });
       rec.snotScores.forEach((s, i) => { if(lSnot[i]) { lSnot[i].innerText = s; lSnotR[i].value = s; } });
+      if ($('historyNote')) $('historyNote').value = rec.Note || '無備註';
     } catch(e) { $('lMsg').textContent = '載入失敗'; }
   }
 
   // 提交追蹤量表
   async function submit() {
-    const chart = $('chartNo').value || $('qChartNo').value;
+    const chart = $('chartNo').value;
     if(!chart) return alert("病歷號不明，請先在上方載入患者");
     const btn = $('btnSubmit');
     btn.disabled = true; btn.innerText = '傳送數據中...';
