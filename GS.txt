@@ -1,0 +1,645 @@
+/**
+ * 健康管理系統 - Google Apps Script 後端
+ *
+ * 功能說明：
+ * 1. 管理三張 Google Sheet：
+ *    - 基本資料：病患基本資料
+ *    - 病患追蹤表：VAS / SNOT-22 每日追蹤紀錄
+ *    - 管理密碼：前端登入基本資料管理區使用
+ *
+ * 2. 提供 GitHub Pages HTML 呼叫的 API：
+ *    - GET  verifyPassword：驗證管理密碼
+ *    - GET  testConnection：測試是否能連到試算表
+ *    - GET  testPasswordSheet：測試是否能讀取密碼表
+ *    - GET  search：依電話號碼完全比對查詢病患
+ *    - GET  chart + date：查詢指定病患指定日期的追蹤紀錄
+ *    - POST updateProfile：新增或更新基本資料
+ *    - POST submitSurvey：新增或更新追蹤紀錄
+ */
+
+// ===============================
+// 一、Sheet 名稱設定
+// ===============================
+// 這三個名稱要對應 Google 試算表底下的分頁名稱。
+const SHEET_PROFILE = '基本資料';
+const SHEET_TRACKING = '病患追蹤表';
+const SHEET_PASSWORD = '管理密碼';
+
+// Google 試算表 ID。
+// 取自網址：https://docs.google.com/spreadsheets/d/【這段就是 ID】/edit
+const SPREADSHEET_ID = '1djWVe3O5lupp2ykEr4bLQ2dK5pf7zgYjFXXPrPwC_WE';
+
+// ===============================
+// 二、基本資料欄位設定
+// ===============================
+// Phone：電話號碼，作為基本資料唯一 Key。
+// 欄位名稱會自動建立在「基本資料」工作表第一列。
+const PROFILE_HEADERS = [
+  'Phone', 'ChartNo', 'Name', 'Gender', 'DOB', 'OPAge', 'OPDate',
+  'Side', 'NP', 'Diagnosis', 'Steroid', 'Macrolide',
+  'Clarithromycin', 'IgE', 'Eosinophil', 'Eosinophil_Count',
+  'Peripheral_Eosinophil', 'MAST', 'Prev_OP', 'Asthma',
+  'Drug_Allergy', 'Allergy_Detail', 'Smoking', 'Smoking_Detail',
+  'LM_R', 'LM_L', 'Polyp_R', 'HistoryNote',
+  'CreatedAt', 'UpdatedAt'
+];
+
+// ===============================
+// 三、追蹤表欄位設定
+// ===============================
+// VAS 有 10 題，SNOT-22 有 22 題。
+// 同一病歷號 + 同一天日期會更新，不會新增重複資料。
+const TRACKING_HEADERS = [
+  'TrackingId', 'ChartNo', 'TrackDate',
+  'VAS_鼻塞', 'VAS_流鼻涕', 'VAS_鼻涕倒流', 'VAS_嗅覺低下', 'VAS_頭痛',
+  'VAS_臉部疼痛', 'VAS_頭部腫脹', 'VAS_鼻部臭味', 'VAS_咳嗽', 'VAS_鼻音變化',
+  'VAS0',
+  'SNOT_擤鼻涕', 'SNOT_打噴嚏', 'SNOT_流鼻涕', 'SNOT_鼻塞', 'SNOT_嗅覺喪失',
+  'SNOT_咳嗽', 'SNOT_鼻涕倒流', 'SNOT_濃稠分泌物', 'SNOT_耳朵悶塞',
+  'SNOT_頭昏頭痛', 'SNOT_耳痛', 'SNOT_臉部疼痛', 'SNOT_入睡困難',
+  'SNOT_夜間醒來', 'SNOT_睡品不佳', 'SNOT_起床覺累', 'SNOT_疲勞',
+  'SNOT_生產力降', 'SNOT_注意力低', 'SNOT_挫折易怒', 'SNOT_悲傷憂愁',
+  'SNOT_侷促不安',
+  'SNOT0', 'Note', 'CreatedAt', 'UpdatedAt'
+];
+
+// ===============================
+// 四、管理密碼欄位設定
+// ===============================
+// Password：密碼文字
+// Enabled：是否啟用，TRUE / 1 / Y 都算啟用
+// Name：備註名稱
+// UpdatedAt：修改時間
+const PASSWORD_HEADERS = [
+  'Password', 'Enabled', 'Name', 'UpdatedAt'
+];
+
+/**
+ * 取得 Google 試算表物件。
+ *
+ * 為什麼不用 SpreadsheetApp.getActiveSpreadsheet()？
+ * 因為前端是 GitHub Pages 呼叫 Web App，使用 openById 比較穩定，
+ * 不會因 Apps Script 是否綁定試算表而讀錯。
+ */
+function getSpreadsheet_() {
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+/**
+ * GET API 入口。
+ *
+ * 前端用 fetch(`${GAS_URL}?參數`) 呼叫時，都會進到這裡。
+ */
+function doGet(e) {
+  try {
+    // 每次呼叫前先確認三張表與欄位存在。
+    initSheets_();
+
+    const p = e.parameter || {};
+
+    // 驗證管理密碼。
+    if (p.action === 'verifyPassword') {
+      return json_(verifyPassword_(p.password));
+    }
+
+    // 測試是否可以連到試算表，用於前端顯示 Excel 連線狀態。
+    if (p.action === 'testConnection') {
+      const ss = getSpreadsheet_();
+      return json_({
+        success: true,
+        message: '已成功連到試算表',
+        spreadsheetName: ss.getName(),
+        sheets: ss.getSheets().map(s => s.getName())
+      });
+    }
+
+    // 測試是否可以讀到管理密碼表。
+    if (p.action === 'testPasswordSheet') {
+      return json_(testPasswordSheet_());
+    }
+
+    // 快速搜尋病患。
+    // 規則：電話號碼必須完全一樣才算找到。
+    if (p.search) {
+      return json_(searchProfile_(p.search));
+    }
+
+    // 查詢病患指定日期的追蹤紀錄。
+    if (p.chart && p.date) {
+      return json_(getTracking_(p.chart, p.date));
+    }
+
+    // 預設回應，方便直接打開 Web App URL 測試。
+    return json_({
+      success: true,
+      message: 'Health tracking API is running.'
+    });
+
+  } catch (err) {
+    // 所有錯誤統一回傳 JSON，方便前端或瀏覽器除錯。
+    return json_({
+      success: false,
+      message: 'Apps Script 錯誤：' + err.message,
+      stack: err.stack
+    });
+  }
+}
+
+/**
+ * POST API 入口。
+ *
+ * 前端用 fetch(GAS_URL, { method: 'POST', body: JSON.stringify(...) })
+ * 呼叫時，會進到這裡。
+ */
+function doPost(e) {
+  try {
+    initSheets_();
+
+    // 解析前端傳來的 JSON 內容。
+    const body = JSON.parse((e.postData && e.postData.contents) || '{}');
+
+    switch (body.action) {
+      // 新增或更新基本資料。
+      case 'updateProfile':
+        return json_(upsertProfile_(body));
+
+      // 新增或更新追蹤資料。
+      case 'submitSurvey':
+        return json_(upsertTracking_(body));
+
+      default:
+        return json_({
+          success: false,
+          message: 'Unknown action'
+        });
+    }
+
+  } catch (err) {
+    return json_({
+      success: false,
+      message: 'Apps Script 錯誤：' + err.message,
+      stack: err.stack
+    });
+  }
+}
+
+/**
+ * 初始化三張工作表。
+ *
+ * 如果工作表不存在，會自動建立。
+ * 如果欄位不存在，會自動補上。
+ * 如果管理密碼表沒有資料，會自動建立預設密碼 1234。
+ */
+function initSheets_() {
+  ensureSheet_(SHEET_PROFILE, PROFILE_HEADERS);
+  ensureSheet_(SHEET_TRACKING, TRACKING_HEADERS);
+  ensureSheet_(SHEET_PASSWORD, PASSWORD_HEADERS);
+
+  const sh = getSpreadsheet_().getSheetByName(SHEET_PASSWORD);
+
+  // 只有標題列，代表還沒有任何密碼資料。
+  if (sh.getLastRow() === 1) {
+    sh.appendRow(['1234', true, '預設管理密碼，請修改', new Date()]);
+  }
+}
+
+/**
+ * 確保指定工作表存在，並確保欄位完整。
+ *
+ * @param {string} sheetName 工作表名稱
+ * @param {string[]} headers 欄位清單
+ */
+function ensureSheet_(sheetName, headers) {
+  const ss = getSpreadsheet_();
+  let sh = ss.getSheetByName(sheetName);
+
+  // 如果沒有這張工作表，自動新增。
+  if (!sh) {
+    sh = ss.insertSheet(sheetName);
+  }
+
+  // 完全空白工作表，直接寫入標題列。
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.setFrozenRows(1);
+    return sh;
+  }
+
+  const currentHeaders = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), headers.length)).getValues()[0];
+  const isEmptyHeader = currentHeaders.every(x => !x);
+
+  // 第一列存在但全空，也視為尚未初始化。
+  if (isEmptyHeader) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sh.setFrozenRows(1);
+    return sh;
+  }
+
+  // 如果後續程式新增欄位，會自動把缺少的欄位補在最後面。
+  const missingHeaders = headers.filter(h => !currentHeaders.includes(h));
+  if (missingHeaders.length) {
+    const startCol = sh.getLastColumn() + 1;
+    sh.getRange(1, startCol, 1, missingHeaders.length).setValues([missingHeaders]);
+  }
+
+  sh.setFrozenRows(1);
+  return sh;
+}
+
+/**
+ * 驗證管理密碼。
+ *
+ * 規則：
+ * - 從「管理密碼」工作表讀取 Password
+ * - Enabled 必須為 true / TRUE / 1 / Y 才算啟用
+ * - 只要有一筆啟用密碼相同，就通過
+ */
+function verifyPassword_(inputPassword) {
+  const pwd = String(inputPassword || '').trim();
+
+  if (!pwd) {
+    return { success: false, message: '請輸入密碼' };
+  }
+
+  const sh = getSpreadsheet_().getSheetByName(SHEET_PASSWORD);
+  const values = sh.getDataRange().getValues();
+
+  if (values.length <= 1) {
+    return { success: false, message: '尚未設定管理密碼' };
+  }
+
+  const headers = values[0];
+  const passwordIndex = headers.indexOf('Password');
+  const enabledIndex = headers.indexOf('Enabled');
+
+  if (passwordIndex === -1 || enabledIndex === -1) {
+    return { success: false, message: '管理密碼表欄位錯誤，請確認 Password / Enabled' };
+  }
+
+  for (let i = 1; i < values.length; i++) {
+    const sheetPassword = String(values[i][passwordIndex] || '').trim();
+    const enabledValue = values[i][enabledIndex];
+
+    const enabled =
+      enabledValue === true ||
+      String(enabledValue).toLowerCase() === 'true' ||
+      String(enabledValue) === '1' ||
+      String(enabledValue).toUpperCase() === 'Y';
+
+    if (enabled && sheetPassword === pwd) {
+      return { success: true, message: '密碼驗證成功' };
+    }
+  }
+
+  return { success: false, message: '密碼錯誤，請重新輸入' };
+}
+
+/**
+ * 測試管理密碼表是否存在與欄位是否可讀。
+ */
+function testPasswordSheet_() {
+  const ss = getSpreadsheet_();
+  const sh = ss.getSheetByName(SHEET_PASSWORD);
+
+  if (!sh) {
+    return {
+      success: false,
+      message: '找不到密碼表：' + SHEET_PASSWORD,
+      spreadsheetName: ss.getName(),
+      sheets: ss.getSheets().map(s => s.getName())
+    };
+  }
+
+  const values = sh.getDataRange().getValues();
+
+  return {
+    success: true,
+    message: '已讀到密碼表',
+    spreadsheetName: ss.getName(),
+    sheetName: sh.getName(),
+    rowCount: sh.getLastRow(),
+    headers: values[0] || []
+  };
+}
+
+/**
+ * 正規化電話號碼。
+ *
+ * 目前規則：
+ * - 只移除前後空白
+ * - 不移除中間符號
+ *
+ * 因為你的需求是「搜尋電話號碼要完全一樣才找到」，
+ * 所以這裡不要自動把 0912-345-678 轉成 0912345678。
+ */
+function normalizePhone_(phone) {
+  return String(phone || '').trim();
+}
+
+/**
+ * 新增或更新病患基本資料。
+ *
+ * 規則：
+ * - Phone 是唯一 Key
+ * - Phone 完全一樣：更新同一筆
+ * - Phone 找不到：新增一筆
+ */
+function upsertProfile_(data) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_PROFILE);
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+
+  const phone = normalizePhone_(data.Phone);
+  const name = String(data.Name || '').trim();
+  const chartNo = String(data.ChartNo || '').trim();
+
+  if (!phone) {
+    return { success: false, message: 'Phone is required' };
+  }
+
+  if (!name) {
+    return { success: false, message: 'Name is required' };
+  }
+
+  if (!chartNo) {
+    return { success: false, message: 'ChartNo is required' };
+  }
+
+  const now = new Date();
+  const phoneIndex = headers.indexOf('Phone');
+
+  if (phoneIndex === -1) {
+    return { success: false, message: '基本資料表缺少 Phone 欄位，請重新執行初始化或檢查標題列' };
+  }
+
+  let rowIndex = -1;
+
+  // 找到 Phone 完全相同的資料列。
+  for (let i = 1; i < values.length; i++) {
+    const rowPhone = normalizePhone_(values[i][phoneIndex]);
+
+    if (rowPhone === phone) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  // 根據欄位名稱組出要寫入的資料列。
+  // 這樣即使欄位順序調整，也比較不容易寫錯資料。
+  const row = headers.map(h => {
+    if (h === 'CreatedAt') {
+      return rowIndex === -1 ? now : values[rowIndex - 1][headers.indexOf('CreatedAt')];
+    }
+
+    if (h === 'UpdatedAt') {
+      return now;
+    }
+
+    return data[h] ?? '';
+  });
+
+  if (rowIndex === -1) {
+    sh.appendRow(row);
+  } else {
+    sh.getRange(rowIndex, 1, 1, headers.length).setValues([row]);
+  }
+
+  return {
+    success: true,
+    message: rowIndex === -1 ? 'Profile created' : 'Profile updated',
+    Phone: phone,
+    ChartNo: chartNo,
+    Name: name
+  };
+}
+
+/**
+ * 搜尋病患基本資料。
+ *
+ * 規則：
+ * - 只比對 Phone
+ * - 輸入值必須完全等於 Phone
+ * - 不使用 includes，避免輸入部分文字就誤判找到
+ */
+function searchProfile_(keyword) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_PROFILE);
+  const values = sh.getDataRange().getValues();
+
+  if (values.length <= 1) return null;
+
+  const headers = values[0];
+  const key = normalizePhone_(keyword);
+  const phoneIndex = headers.indexOf('Phone');
+
+  if (phoneIndex === -1) {
+    return null;
+  }
+
+  for (let i = 1; i < values.length; i++) {
+    const phone = normalizePhone_(values[i][phoneIndex]);
+
+    if (phone === key) {
+      return rowToObject_(headers, values[i]);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 新增或更新追蹤紀錄。
+ *
+ * 規則：
+ * - 同一病歷號 + 同一天日期：更新
+ * - 找不到同日紀錄：新增
+ */
+function upsertTracking_(data) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_TRACKING);
+  const values = sh.getDataRange().getValues();
+  const headers = values[0];
+
+  const chartNo = String(data.ChartNo || '').trim();
+  const trackDate = normalizeDate_(data.TrackDate || new Date());
+
+  if (!chartNo) {
+    return { success: false, message: 'ChartNo is required' };
+  }
+
+  const now = new Date();
+  const chartIndex = headers.indexOf('ChartNo');
+  const dateIndex = headers.indexOf('TrackDate');
+
+  let rowIndex = -1;
+
+  // 判斷同一天資料是否已存在。
+  for (let i = 1; i < values.length; i++) {
+    const rowChart = String(values[i][chartIndex] || '').trim();
+    const rowDate = normalizeDate_(values[i][dateIndex]);
+
+    if (rowChart === chartNo && rowDate === trackDate) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  // 補齊分數長度，避免前端少傳資料造成欄位錯位。
+  const vasScores = padScores_(data.vasScores || [], 10);
+  const snotScores = padScores_(data.snotScores || [], 22);
+
+  const rowObject = {
+    TrackingId: rowIndex === -1 ? Utilities.getUuid() : values[rowIndex - 1][headers.indexOf('TrackingId')],
+    ChartNo: chartNo,
+    TrackDate: trackDate,
+    VAS0: data.VAS0 ?? sum_(vasScores),
+    SNOT0: data.SNOT0 ?? sum_(snotScores),
+    Note: data.Note || '',
+    CreatedAt: rowIndex === -1 ? now : values[rowIndex - 1][headers.indexOf('CreatedAt')],
+    UpdatedAt: now
+  };
+
+  const vasHeaders = TRACKING_HEADERS.filter(h => h.startsWith('VAS_'));
+  const snotHeaders = TRACKING_HEADERS.filter(h => h.startsWith('SNOT_'));
+
+  // 將 VAS / SNOT 分數放到對應欄位。
+  vasHeaders.forEach((h, i) => rowObject[h] = Number(vasScores[i] || 0));
+  snotHeaders.forEach((h, i) => rowObject[h] = Number(snotScores[i] || 0));
+
+  const row = headers.map(h => rowObject[h] ?? '');
+
+  if (rowIndex === -1) {
+    sh.appendRow(row);
+  } else {
+    sh.getRange(rowIndex, 1, 1, headers.length).setValues([row]);
+  }
+
+  return {
+    success: true,
+    message: rowIndex === -1 ? 'Tracking created' : 'Tracking updated',
+    ChartNo: chartNo,
+    TrackDate: trackDate
+  };
+}
+
+/**
+ * 查詢指定病患指定日期的追蹤資料。
+ */
+function getTracking_(chartNo, date) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_TRACKING);
+  const values = sh.getDataRange().getValues();
+
+  if (values.length <= 1) return null;
+
+  const headers = values[0];
+  const chartIndex = headers.indexOf('ChartNo');
+  const dateIndex = headers.indexOf('TrackDate');
+
+  const targetChart = String(chartNo || '').trim();
+  const targetDate = normalizeDate_(date);
+
+  // 從最後一筆往前找，若有重複資料，會優先拿最新一筆。
+  for (let i = values.length - 1; i >= 1; i--) {
+    const rowChart = String(values[i][chartIndex] || '').trim();
+    const rowDate = normalizeDate_(values[i][dateIndex]);
+
+    if (rowChart === targetChart && rowDate === targetDate) {
+      return {
+        ChartNo: rowChart,
+        TrackDate: rowDate,
+        vasScores: getScoresByPrefix_(headers, values[i], 'VAS_'),
+        VAS0: Number(values[i][headers.indexOf('VAS0')] || 0),
+        snotScores: getScoresByPrefix_(headers, values[i], 'SNOT_'),
+        SNOT0: Number(values[i][headers.indexOf('SNOT0')] || 0),
+        Note: values[i][headers.indexOf('Note')] || ''
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 依欄位前綴取出分數。
+ *
+ * 例如：
+ * - prefix = 'VAS_'  會取出所有 VAS 題目分數
+ * - prefix = 'SNOT_' 會取出所有 SNOT 題目分數
+ */
+function getScoresByPrefix_(headers, row, prefix) {
+  return headers
+    .map((h, i) => ({ h, value: row[i] }))
+    .filter(x => x.h.startsWith(prefix))
+    .map(x => Number(x.value || 0));
+}
+
+/**
+ * 補齊分數陣列長度。
+ *
+ * 如果前端傳來的分數少於指定長度，缺少的部分補 0。
+ */
+function padScores_(items, length) {
+  const result = [];
+
+  for (let i = 0; i < length; i++) {
+    result.push(Number(items[i] || 0));
+  }
+
+  return result;
+}
+
+/**
+ * 把 Sheet 的一列資料轉成物件。
+ *
+ * 例如：
+ * headers = ['ChartNo', 'Name']
+ * row     = ['001', '王小明']
+ * 結果會變成：{ ChartNo: '001', Name: '王小明' }
+ */
+function rowToObject_(headers, row) {
+  const obj = {};
+
+  headers.forEach((h, i) => {
+    obj[h] = formatValue_(row[i]);
+  });
+
+  return obj;
+}
+
+/**
+ * 格式化從 Sheet 讀出的值。
+ *
+ * 如果是日期物件，轉成 yyyy-MM-dd，方便 HTML date input 使用。
+ */
+function formatValue_(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+
+  return value;
+}
+
+/**
+ * 將日期統一轉成 yyyy-MM-dd。
+ */
+function normalizeDate_(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+
+  return String(value || '').substring(0, 10);
+}
+
+/**
+ * 分數加總。
+ */
+function sum_(items) {
+  return items.reduce((sum, x) => sum + Number(x || 0), 0);
+}
+
+/**
+ * 統一回傳 JSON 給前端。
+ */
+function json_(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
