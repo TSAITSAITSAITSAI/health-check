@@ -266,8 +266,7 @@
 
 <script>
   const $ = id => document.getElementById(id);
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbyUs4b6HiLGSHO2JwZs-OYpVH4g12MxsOBQ-eN3c60Qewb14s9_L0DCoLpPsOYNxEY4fw/exec";
-  const ADMIN_PASSWORD = "1234";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbztzoccTcKVez7BExT5TVnxYHZBf23u7Zgj5wRNeaziCm0o3LUa90Bol4l_1FCUZAte/exec";
   let isAdminUnlocked = false;
 
   const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "頭部腫脹", "鼻部臭味", "咳嗽", "鼻音變化"];
@@ -325,18 +324,35 @@
     if (event.key === 'Escape') closePasswordModal();
   }
 
-  function confirmPassword() {
+  async function confirmPassword() {
     const pwd = $('adminPassword').value.trim();
 
-    if (pwd !== ADMIN_PASSWORD) {
-      $('passwordMsg').innerText = '密碼錯誤，請重新輸入';
-      $('adminPassword').select();
+    if (!pwd) {
+      $('passwordMsg').innerText = '請輸入密碼';
+      $('adminPassword').focus();
       return;
     }
 
-    isAdminUnlocked = true;
-    closePasswordModal();
-    openAdminContent();
+    $('passwordMsg').innerText = '驗證中...';
+
+    try {
+      // GitHub Pages 呼叫 Apps Script：用 GET 驗證，避免 CORS 預檢問題
+      const resp = await fetch(`${GAS_URL}?action=verifyPassword&password=${encodeURIComponent(pwd)}`);
+      const result = await resp.json();
+
+      if (!result.success) {
+        $('passwordMsg').innerText = result.message || '密碼錯誤，請重新輸入';
+        $('adminPassword').select();
+        return;
+      }
+
+      isAdminUnlocked = true;
+      closePasswordModal();
+      openAdminContent();
+
+    } catch (e) {
+      $('passwordMsg').innerText = '無法連線驗證密碼，請稍後再試';
+    }
   }
 
   // 開啟病患模式
