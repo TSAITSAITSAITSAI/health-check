@@ -32,8 +32,7 @@ const SPREADSHEET_ID = '1djWVe3O5lupp2ykEr4bLQ2dK5pf7zgYjFXXPrPwC_WE';
 // ===============================
 // 二、基本資料欄位設定
 // ===============================
-// Phone：電話號碼，作為基本資料唯一 Key。
-// 欄位名稱會自動建立在「基本資料」工作表第一列。
+// ChartNo：病歷號，作為基本資料唯一 Key。
 const PROFILE_HEADERS = [
   'Phone', 'ChartNo', 'Name', 'Gender', 'DOB', 'OPAge', 'OPDate',
   'Side', 'NP', 'Diagnosis', 'Steroid', 'Macrolide',
@@ -118,11 +117,19 @@ function doGet(e) {
       return json_(testPasswordSheet_());
     }
 
-    // 快速搜尋病患。
-    // 規則：電話號碼必須完全一樣才算找到。
+   // 快速搜尋病患。
+   // 規則：病歷號完全相同 或 姓名完全相同 才算找到。
     if (p.search) {
       return json_(searchProfile_(p.search));
     }
+
+if (p.action === 'lastTrackingDate' && p.chart) {
+  return json_(getLastTrackingDate_(p.chart));
+}
+
+if (p.action === 'deleteProfile' && p.chart) {
+  return json_(deleteProfile_(p.chart));
+}
 
     // 查詢病患指定日期的追蹤紀錄。
     if (p.chart && p.date) {
@@ -349,46 +356,42 @@ function upsertProfile_(data) {
   const values = sh.getDataRange().getValues();
   const headers = values[0];
 
-  const phone = normalizePhone_(data.Phone);
+  const phone = String(data.Phone || '').trim();
   const name = String(data.Name || '').trim();
   const chartNo = String(data.ChartNo || '').trim();
 
-  if (!phone) {
-    return { success: false, message: 'Phone is required' };
+  if (!chartNo) {
+    return { success: false, message: 'ChartNo is required' };
   }
 
   if (!name) {
     return { success: false, message: 'Name is required' };
   }
 
-  if (!chartNo) {
-    return { success: false, message: 'ChartNo is required' };
-  }
-
   const now = new Date();
-  const phoneIndex = headers.indexOf('Phone');
+  const chartIndex = headers.indexOf('ChartNo');
 
-  if (phoneIndex === -1) {
-    return { success: false, message: '基本資料表缺少 Phone 欄位，請重新執行初始化或檢查標題列' };
+  if (chartIndex === -1) {
+    return { success: false, message: '基本資料表缺少 ChartNo 欄位，請重新執行初始化或檢查標題列' };
   }
 
   let rowIndex = -1;
 
-  // 找到 Phone 完全相同的資料列。
+  // 用病歷號完全相同來判斷更新
   for (let i = 1; i < values.length; i++) {
-    const rowPhone = normalizePhone_(values[i][phoneIndex]);
+    const rowChartNo = String(values[i][chartIndex] || '').trim();
 
-    if (rowPhone === phone) {
+    if (rowChartNo === chartNo) {
       rowIndex = i + 1;
       break;
     }
   }
 
-  // 根據欄位名稱組出要寫入的資料列。
-  // 這樣即使欄位順序調整，也比較不容易寫錯資料。
+  const createdAtIndex = headers.indexOf('CreatedAt');
+
   const row = headers.map(h => {
     if (h === 'CreatedAt') {
-      return rowIndex === -1 ? now : values[rowIndex - 1][headers.indexOf('CreatedAt')];
+      return rowIndex === -1 ? now : values[rowIndex - 1][createdAtIndex];
     }
 
     if (h === 'UpdatedAt') {
@@ -407,9 +410,9 @@ function upsertProfile_(data) {
   return {
     success: true,
     message: rowIndex === -1 ? 'Profile created' : 'Profile updated',
-    Phone: phone,
     ChartNo: chartNo,
-    Name: name
+    Name: name,
+    Phone: phone
   };
 }
 
@@ -428,24 +431,30 @@ function searchProfile_(keyword) {
   if (values.length <= 1) return null;
 
   const headers = values[0];
-  const key = normalizePhone_(keyword);
-  const phoneIndex = headers.indexOf('Phone');
+  const key = String(keyword || '').trim();
 
-  if (phoneIndex === -1) {
+  const chartIndex = headers.indexOf('ChartNo');
+  const nameIndex = headers.indexOf('Name');
+
+  if (chartIndex === -1 || nameIndex === -1) {
     return null;
   }
 
+  // 快速搜尋：
+  // 1. 病歷號完全相同
+  // 2. 或姓名完全相同
+  // 不使用 includes，避免模糊搜尋誤判
   for (let i = 1; i < values.length; i++) {
-    const phone = normalizePhone_(values[i][phoneIndex]);
+    const rowChartNo = String(values[i][chartIndex] || '').trim();
+    const rowName = String(values[i][nameIndex] || '').trim();
 
-    if (phone === key) {
+    if (rowChartNo === key || rowName === key) {
       return rowToObject_(headers, values[i]);
     }
   }
 
   return null;
 }
-
 /**
  * 新增或更新追蹤紀錄。
  *
@@ -642,4 +651,112 @@ function json_(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getLastTrackingDate_(chartNo) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_TRACKING);
+  const values = sh.getDataRange().getValues();
+
+  if (values.length <= 1) {
+    return {
+      success: false,
+      message: 'No tracking data'
+    };
+  }
+
+  const headers = values[0];
+  const chartIndex = headers.indexOf('ChartNo');
+  const dateIndex = headers.indexOf('TrackDate');
+
+  if (chartIndex === -1 || dateIndex === -1) {
+    return {
+      success: false,
+      message: 'Tracking sheet missing ChartNo or TrackDate'
+    };
+  }
+
+  const targetChart = String(chartNo || '').trim();
+  let lastDate = '';
+
+  for (let i = 1; i < values.length; i++) {
+    const rowChart = String(values[i][chartIndex] || '').trim();
+
+    if (rowChart !== targetChart) continue;
+
+    const rowDate = normalizeDate_(values[i][dateIndex]);
+
+    if (!lastDate || rowDate > lastDate) {
+      lastDate = rowDate;
+    }
+  }
+
+  if (!lastDate) {
+    return {
+      success: false,
+      message: 'No tracking found'
+    };
+  }
+
+  return {
+    success: true,
+    ChartNo: targetChart,
+    TrackDate: lastDate
+  };
+}
+
+function deleteProfile_(chartNo) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_PROFILE);
+
+  if (!sh) {
+    return {
+      success: false,
+      message: '找不到基本資料工作表：' + SHEET_PROFILE
+    };
+  }
+
+  const values = sh.getDataRange().getDisplayValues();
+
+  if (values.length <= 1) {
+    return {
+      success: false,
+      message: '基本資料表沒有資料'
+    };
+  }
+
+  const headers = values[0].map(x => String(x).trim());
+  const chartIndex = headers.indexOf('ChartNo');
+
+  if (chartIndex === -1) {
+    return {
+      success: false,
+      message: '基本資料表缺少 ChartNo 欄位'
+    };
+  }
+
+  const target = String(chartNo || '').trim();
+
+  if (!target) {
+    return {
+      success: false,
+      message: '病歷號不可空白'
+    };
+  }
+
+  for (let i = 1; i < values.length; i++) {
+    const rowChartNo = String(values[i][chartIndex] || '').trim();
+
+    if (rowChartNo === target) {
+      sh.deleteRow(i + 1);
+
+      return {
+        success: true,
+        message: '已刪除基本資料：' + target
+      };
+    }
+  }
+
+  return {
+    success: false,
+    message: '找不到病歷號：' + target
+  };
 }

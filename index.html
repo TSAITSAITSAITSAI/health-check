@@ -227,8 +227,10 @@
       <div class="title">🔍 歷史紀錄查詢</div>
       <div class="flex gap-2 items-end mb-6">      
         <div class="flex-1">
-          <label>選擇日期</label>
-          <input id="qDate" type="date">
+        <label>選擇有紀錄日期</label>
+<select id="qDate" onchange="queryHistory()">
+  <option value="">請先開啟追蹤模式</option>
+</select>
         </div>
         <button class="bg-slate-600 text-white px-4 py-3 rounded-lg h-[48px] font-bold" onclick="queryHistory()">查詢</button>
  
@@ -288,10 +290,14 @@
 
 <script>
   const $ = id => document.getElementById(id);
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbxd8fyjrvBXwd0dH3k1nK6D2CL2UrC7iQeq6hMdSLBp7JwoOhdYow2OmGs6CGADjs1v/exec";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbycbFfrYvWpHpRX9Eo1syMoKPwkQ8R54XT9AFdG_cgr-1jloYICP60ewzp0JX_vaL8f/exec";
+  
   let isAdminUnlocked = false;
   let loadedPatient = null;
   let isPatientMode = false;
+
+  
+  const HISTORY_DATE_LIMIT = 5;
 
   const vasItems = ["鼻塞", "流鼻涕", "鼻涕倒流", "嗅覺低下", "頭痛", "臉部疼痛", "頭部腫脹", "鼻部臭味", "咳嗽", "鼻音變化"];
   const snotItems = ["擤鼻涕", "打噴嚏", "流鼻涕", "鼻塞", "嗅覺喪失", "咳嗽", "鼻涕倒流", "濃稠分泌物", "耳朵悶塞", "頭昏頭痛", "耳痛", "臉部疼痛", "入睡困難", "夜間醒來", "睡品不佳", "起床覺累", "疲勞", "生產力降", "注意力低", "挫折易怒", "悲傷憂愁", "侷促不安"];
@@ -324,7 +330,7 @@ setTrackingAreaVisible(false);
     $('lMsg').innerHTML = '';
     $('rMsg').innerHTML = '';
     $('searchKey').value = '';   
-    $('qDate').value = '';
+    $('qDate').innerHTML = '<option value="">請先開啟追蹤模式</option>';
     showHistoryChartInput(true);
     $('chartNo').disabled = false;
     $('opAge').disabled = false;
@@ -553,8 +559,8 @@ function switchToPatientMode() {
   $('p_disp_chart').innerText = "Chart No. " + chart;
   $('p_disp_chart').innerHTML += `<br>📞 ${phone}`;
 
-  $('qDate').value = todayString();
   showHistoryChartInput(false);
+loadHistoryDateList();
 
   window.scrollTo({ top: $('patientCardSummary').offsetTop - 20, behavior: 'smooth' });
 }
@@ -727,12 +733,57 @@ if (!name) return alert("請先填寫姓名");
   }
 }
 
+async function loadHistoryDateList() {
+  const chart = $('chartNo').value.trim();
+
+  if (!chart) {
+    $('qDate').innerHTML = '<option value="">請先載入患者</option>';
+    return;
+  }
+
+  $('qDate').innerHTML = '<option value="">讀取日期中...</option>';
+  $('lMsg').textContent = '正在讀取有紀錄的日期列表...';
+
+  try {
+    const resp = await fetch(
+      `${GAS_URL}?action=trackingDates&chart=${encodeURIComponent(chart)}&limit=${HISTORY_DATE_LIMIT}&t=${Date.now()}`
+    );
+
+    const result = await resp.json();
+
+    if (!result || !result.success || !result.items || result.items.length === 0) {
+      $('qDate').innerHTML = '<option value="">尚無追蹤紀錄</option>';
+      $('lMsg').innerHTML = '<span class="text-orange-600 font-bold">⚠️ 尚無追蹤紀錄</span>';
+      clearHistoryResult();
+      return;
+    }
+
+    $('qDate').innerHTML = result.items.map((x, index) => {
+      const selected = index === 0 ? 'selected' : '';
+      const text = x.UpdatedAt
+        ? `${x.TrackDate}（更新：${x.UpdatedAt}）`
+        : x.TrackDate;
+
+      return `<option value="${x.TrackDate}" ${selected}>${text}</option>`;
+    }).join('');
+
+    $('lMsg').innerHTML = `<span class="text-green-600 font-bold">✅ 已載入 ${result.items.length} 筆歷史日期</span>`;
+
+    queryHistory();
+
+  } catch (e) {
+    $('qDate').innerHTML = '<option value="">日期讀取失敗</option>';
+    $('lMsg').innerHTML = '<span class="text-red-600 font-bold">❌ 日期列表讀取失敗</span>';
+  }
+}
+
   // 查詢歷史紀錄
   async function queryHistory() {
     const chart = ($('chartNo').value).trim();
-    const date = $('qDate').value || todayString();
-    $('qDate').value = date;
-    if(!chart || !date) return alert("請先載入患者並選擇日期");
+	
+    const date = $('qDate').value;
+    if(!chart || !date) return alert("請先載入患者並選擇有紀錄的日期");
+	
     $('lMsg').textContent = '正在讀取歷程數據...';
     try {
       const resp = await fetch(`${GAS_URL}?chart=${encodeURIComponent(chart)}&date=${date}`);
