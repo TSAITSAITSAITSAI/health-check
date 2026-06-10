@@ -37,7 +37,19 @@
 
     .symptom-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+      min-height: 52px;
+      padding: 10px 0; border-bottom: 1px dashed #cbd5e1;
+    }
+    .tracking-top-control {
+      min-height: 86px;
+    }
+    .scale-heading {
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+    }
+    .scale-gap {
+      margin-top: 24px;
     }
     .score-badge {
       background: #edf2f7; padding: 4px 10px; border-radius: 8px;
@@ -57,14 +69,171 @@
       align-items: center;
       gap: 12px;
     }
+    .scale-status {
+      min-height: 28px;
+      margin-bottom: 8px;
+    }
+    @media (min-width: 768px) {
+      .tracking-grid {
+        gap: 0;
+      }
+      .tracking-grid .card.history {
+        border-radius: 16px 0 0 16px;
+        border-right: 0;
+      }
+      .tracking-grid .card.entry {
+        border-radius: 0 16px 16px 0;
+        border-left: 0;
+      }
+      .tracking-grid .card.history .symptom-row {
+        margin-left: -24px;
+        margin-right: -1px;
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+      .tracking-grid .card.entry .symptom-row {
+        margin-left: -1px;
+        margin-right: -24px;
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+    }
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .main-container > .grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .card.history,
+      .card.entry {
+        padding: 16px;
+      }
+      .tracking-grid .card.history .symptom-row {
+        margin-left: -16px;
+        margin-right: -1px;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .tracking-grid .card.entry .symptom-row {
+        margin-left: -1px;
+        margin-right: -16px;
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .symptom-label {
+        font-size: 13px;
+        padding-right: 8px;
+      }
+      .symptom-control {
+        gap: 8px;
+      }
+      .symptom-control input[type="range"] {
+        width: 88px;
+      }
+    }
 
     .btn-toggle { background: #e2e8f0; color: #475569; padding: 8px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; }
     .btn-save { background: #059669; color: white; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: 700; }
     .btn-patient-mode { background: #d97706; color: white; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: 700; }
     .btn-submit { background: #1a73e8; color: white; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: 700; width: 100%; }
+    .admin-status {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 8px;
+    }
 
     .profile-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
     @media(max-width: 1024px) { .profile-grid { grid-template-columns: 1fr; } }
+    @media (min-width: 768px) and (max-width: 1180px) {
+      body {
+        padding: 4px;
+      }
+      .main-container {
+        max-width: 100%;
+      }
+      #adminSection.card {
+        padding: 12px 14px;
+        margin-bottom: 6px;
+        border-radius: 12px;
+      }
+      #adminSection .title {
+        font-size: 19px;
+      }
+      #toggleBtn {
+        padding: 7px 14px;
+        font-size: 13.5px;
+      }
+      #adminContent .bg-blue-50 {
+        margin-top: 8px;
+        margin-bottom: 6px;
+        padding: 9px 10px;
+      }
+      #adminContent .search-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 112px;
+        gap: 6px;
+        align-items: end;
+      }
+      #adminContent .search-row button {
+        padding-left: 8px;
+        padding-right: 8px;
+        min-height: 34px;
+        white-space: nowrap;
+      }
+      .admin-actions button {
+        padding: 9px 8px;
+        min-height: 38px;
+        font-size: 12.5px;
+        border-radius: 8px;
+        line-height: 1.1;
+      }
+      #adminContent .profile-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px;
+      }
+      #adminContent .section-title {
+        font-size: 13.5px;
+        margin-bottom: 4px;
+        padding-left: 6px;
+      }
+      #adminContent label {
+        margin: 3px 0 1px;
+        font-size: 11.5px;
+        line-height: 1.15;
+      }
+      #adminContent input,
+      #adminContent select,
+      #adminContent textarea {
+        padding: 6px 8px;
+        min-height: 31px;
+        font-size: 13px;
+        border-radius: 6px;
+      }
+      #adminContent .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 2px;
+      }
+      #adminContent .gap-3 {
+        gap: 6px;
+      }
+      #adminContent .gap-2 {
+        gap: 4px;
+      }
+      #history {
+        height: 44px;
+        min-height: 44px;
+      }
+      .admin-status {
+        min-height: 22px;
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.15;
+      }
+      .admin-actions {
+        display: flex;
+        margin-top: 8px;
+        gap: 6px;
+      }
+    }
 
 
     /* 密碼彈窗 */
@@ -106,7 +275,7 @@
 
  
     <div id="adminContent">	
-      <div class="bg-blue-50 p-4 rounded-xl my-6 flex gap-4 items-end">
+      <div class="search-row bg-blue-50 p-4 rounded-xl my-6 flex gap-4 items-end">
         <div class="flex-1">
          <label>快速搜尋患者（病歷號或姓名）</label>
          <input id="searchKey" placeholder="輸入病歷號或姓名後點擊搜尋...">
@@ -190,8 +359,8 @@
        
       </div>
  <div class="field-group"><label>基本病史</label><textarea id="history" rows="2"></textarea></div>
-   <div id="adminMsg" class="msg text-center mt-4"></div>
-      <div class="mt-8 flex gap-4">
+   <div id="adminMsg" class="msg text-center admin-status"></div>
+      <div class="admin-actions mt-8 flex gap-4">
         <button class="btn-save flex-1" onclick="saveProfile()">💾 存檔基本資料</button>
 <button type="button"
         class="bg-red-600 text-white px-8 py-3 rounded-xl font-bold flex-1 hover:bg-red-700"
@@ -220,12 +389,12 @@
   </div>
 
   <!-- 下方雙欄 -->
-  <div class="grid lg:grid-cols-2 gap-6">
+  <div class="tracking-grid grid md:grid-cols-2 gap-y-6 md:gap-0">
     
     <!-- 左側：歷史紀錄 -->
     <div class="card history">
       <div class="title">🔍 歷史紀錄查詢</div>
-      <div class="flex gap-2 items-end mb-6">      
+      <div class="tracking-top-control flex gap-2 items-end mb-6">      
         <div class="flex-1">
         <label>選擇有紀錄日期</label>
 <select id="qDate" onchange="queryHistory()">
@@ -235,11 +404,11 @@
         <button class="bg-slate-600 text-white px-4 py-3 rounded-lg h-[48px] font-bold" onclick="queryHistory()">查詢</button>
  
       </div>
-      <div id="lMsg" class="msg mb-2"></div>
+      <div id="lMsg" class="msg scale-status"></div>
       <div class="opacity-75">
-        <div class="font-bold text-gray-500 border-b pb-1 mb-2">歷史 VAS 評分</div>
+        <div class="scale-heading font-bold text-gray-500 border-b pb-1 mb-2">歷史 VAS 評分</div>
         <div id="L_vas-fields"></div>
-        <div class="font-bold text-gray-500 border-b pb-1 mt-6 mb-2">歷史 SNOT-22 評分</div>
+        <div class="scale-heading scale-gap font-bold text-gray-500 border-b pb-1 mb-2">歷史 SNOT-22 評分</div>
         <div id="L_snot-fields"></div>
         <div class="mt-6">
           <label>歷史症狀備註</label>
@@ -251,13 +420,14 @@
     <!-- 右側：新增本次紀錄 -->
     <div class="card entry">
       <div class="title">✍️ 新增本次追蹤評估</div>
-      <div class="field-group mb-6" id="trackDateGroup">
+      <div class="tracking-top-control field-group mb-6" id="trackDateGroup">
         <label>本次追蹤日期</label>
         <input id="trackDate" type="date">
       </div>
-      <div class="font-bold text-blue-700 mb-2">一、VAS 自覺症狀評分 (0-10)</div>
+      <div class="msg scale-status"></div>
+      <div class="scale-heading font-bold text-blue-700 mb-2">一、VAS 自覺症狀評分 (0-10)</div>
       <div id="vas-fields"></div>
-      <div class="font-bold text-blue-700 mt-6 mb-2">二、SNOT-22 生活品質評估 (0-5)</div>
+      <div class="scale-heading scale-gap font-bold text-blue-700 mb-2">二、SNOT-22 生活品質評估 (0-5)</div>
       <div id="snot-fields"></div>
       <div class="mt-6">
         <label>本次症狀備註</label>
