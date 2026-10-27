@@ -27,7 +27,7 @@ const SHEET_PASSWORD = '管理密碼';
 
 // Google 試算表 ID。
 // 取自網址：https://docs.google.com/spreadsheets/d/【這段就是 ID】/edit
-const SPREADSHEET_ID = '1djWVe3O5lupp2ykEr4bLQ2dK5pf7zgYjFXXPrPwC_WE';
+const SPREADSHEET_ID = '1yz58qwojAKGDnaz5mHraWj7IL0s9j0S7yrUkpsfKUeY';
 
 // ===============================
 // 二、基本資料欄位設定
@@ -125,6 +125,10 @@ function doGet(e) {
 
 if (p.action === 'lastTrackingDate' && p.chart) {
   return json_(getLastTrackingDate_(p.chart));
+}
+
+if (p.action === 'trackingDates' && p.chart) {
+  return json_(getTrackingDateList_(p.chart, p.limit));
 }
 
 if (p.action === 'deleteProfile' && p.chart) {
@@ -759,4 +763,78 @@ function deleteProfile_(chartNo) {
     success: false,
     message: '找不到病歷號：' + target
   };
+}
+
+function getTrackingDateList_(chartNo, limit) {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_TRACKING);
+  const values = sh.getDataRange().getValues();
+
+  if (values.length <= 1) {
+    return {
+      success: true,
+      items: []
+    };
+  }
+
+  const headers = values[0];
+  const chartIndex = headers.indexOf('ChartNo');
+  const dateIndex = headers.indexOf('TrackDate');
+  const updatedAtIndex = headers.indexOf('UpdatedAt');
+
+  if (chartIndex === -1 || dateIndex === -1) {
+    return {
+      success: false,
+      message: 'Tracking sheet missing ChartNo or TrackDate'
+    };
+  }
+
+  const targetChart = String(chartNo || '').trim();
+  const take = Math.max(1, Number(limit || 20));
+
+  const map = {};
+
+  for (let i = 1; i < values.length; i++) {
+    const rowChart = String(values[i][chartIndex] || '').trim();
+
+    if (rowChart !== targetChart) continue;
+
+    const trackDate = normalizeDate_(values[i][dateIndex]);
+    if (!trackDate) continue;
+
+    const updatedAt = updatedAtIndex >= 0
+      ? formatDateTime_(values[i][updatedAtIndex])
+      : '';
+
+    map[trackDate] = {
+      TrackDate: trackDate,
+      UpdatedAt: updatedAt
+    };
+  }
+
+  const items = Object.values(map)
+    .sort((a, b) => b.TrackDate.localeCompare(a.TrackDate))
+    .slice(0, take);
+
+  return {
+    success: true,
+    ChartNo: targetChart,
+    limit: take,
+    items: items
+  };
+}
+
+function formatDateTime_(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  }
+
+  return String(value || '');
+}
+
+function initializeInstallation() {
+  initSheets_();
+}
+
+function initializeInstallation() {
+  initSheets_();
 }
