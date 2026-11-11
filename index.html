@@ -930,11 +930,7 @@ async function loadHistoryDateList() {
 
     $('qDate').innerHTML = result.items.map((x, index) => {
       const selected = index === 0 ? 'selected' : '';
-      const text = x.UpdatedAt
-        ? `${x.TrackDate}（更新：${x.UpdatedAt}）`
-        : x.TrackDate;
-
-      return `<option value="${x.TrackDate}" ${selected}>${text}</option>`;
+      return `<option value="${x.TrackDate}" ${selected}>${x.TrackDate}</option>`;
     }).join('');
 
     $('lMsg').innerHTML = `<span class="text-green-600 font-bold">✅ 已載入 ${result.items.length} 筆歷史日期</span>`;
