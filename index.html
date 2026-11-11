@@ -503,8 +503,8 @@ setTrackingAreaVisible(false);
     $('qDate').innerHTML = '<option value="">請先開啟追蹤模式</option>';
     showHistoryChartInput(true);
     $('chartNo').disabled = false;
-    $('opAge').disabled = false;
-    $('opAge').readOnly = false;
+    $('opAge').disabled = true;
+    $('opAge').readOnly = true;
     $('history').rows = 5;
   }
 
@@ -768,22 +768,27 @@ function exitPatientMode() {
 
   function calculateAges() {
     const dobParts = parseYmd($('dob').value);
-
-    if (!dobParts) {
-      $('nowAge').value = '';
-      return;
-    }
-
+    const opDateParts = parseYmd($('opDate').value);
     const today = new Date();
-    let age = today.getFullYear() - dobParts.year;
-    const currentMonth = today.getMonth() + 1;
-    const currentDay = today.getDate();
+    const calculateFullYears = (startParts, endYear, endMonth, endDay) => {
+      if (!startParts) return '';
 
-    if (currentMonth < dobParts.month || (currentMonth === dobParts.month && currentDay < dobParts.day)) {
-      age--;
-    }
+      let age = endYear - startParts.year;
+      if (endMonth < startParts.month || (endMonth === startParts.month && endDay < startParts.day)) {
+        age--;
+      }
+      return age >= 0 ? age : '';
+    };
 
-    $('nowAge').value = age >= 0 ? age : '';
+    $('opAge').value = opDateParts
+      ? calculateFullYears(dobParts, opDateParts.year, opDateParts.month, opDateParts.day)
+      : '';
+    $('nowAge').value = calculateFullYears(
+      dobParts,
+      today.getFullYear(),
+      today.getMonth() + 1,
+      today.getDate()
+    );
   }
 
   // 串接搜尋
@@ -823,7 +828,7 @@ function exitPatientMode() {
       smoking: 'Smoking', smoking_detail: 'Smoking_Detail', lm_r: 'LM_R',
       lm_l: 'LM_L', polyp_r: 'Polyp_R', history: 'HistoryNote'
     };
-    for(let id in mapping) { if($(id)) $(id).value = d[mapping[id]] || ''; }
+    for(let id in mapping) { if($(id)) $(id).value = d[mapping[id]] ?? ''; }
     calculateAges();
   }
 
